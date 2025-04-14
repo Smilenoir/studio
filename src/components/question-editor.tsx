@@ -9,6 +9,7 @@ import {Textarea} from '@/components/ui/textarea';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {useToast} from "@/hooks/use-toast"
 import {supabase} from "@/lib/supabaseClient";
+import * as React from "react";
 
 interface Question {
   id: string;
@@ -30,7 +31,7 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion/*: React.Dispatch<React.SetStateAction<Omit<Question, 'id'>>>*/] = useState<Omit<Question, 'id'>>({
+  const [newQuestion, setNewQuestion: React.Dispatch<React.SetStateAction<Omit<Question, 'id'>>>] = useState({
     group: '',
     type: '' as 'multipleChoice' | 'numerical',
     text: '',
@@ -90,7 +91,7 @@ export const QuestionEditor = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch groups."
+        description: "Failed to fetch questions."
       });
     }
   };
@@ -263,6 +264,8 @@ export const QuestionEditor = () => {
     }
   };
 
+  const selectedGroupName = groups.length === 1 ? groups[0]?.name : groups.find(group => group.id === newQuestion.group)?.name;
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* Question Editor Form */}
@@ -277,7 +280,7 @@ export const QuestionEditor = () => {
             <Label htmlFor="group">Group</Label>
             <Select onValueChange={(value) => handleSelectChange(value, 'group')}>
               <SelectTrigger id="group">
-                <SelectValue placeholder="Select a group">{groups.find(group => group.id === newQuestion.group)?.name}</SelectValue>
+                <SelectValue placeholder="Select a group">{selectedGroupName}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {groups.map(group => (
