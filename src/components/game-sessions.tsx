@@ -16,6 +16,8 @@ interface GameSession {
   maxPlayers: number;
   questionGroupId: string;
   timePerQuestion?: number;
+  joinedPlayers: number; // Добавлено: количество подключенных игроков
+  status: 'active' | 'waiting' | 'finished'; // Добавлено: статус игры
 }
 
 interface Group {
@@ -109,6 +111,8 @@ export const GameSessions = () => {
       maxPlayers: newSession.maxPlayers,
       questionGroupId: newSession.questionGroupId,
       timePerQuestion: newSession.timePerQuestion,
+      joinedPlayers: 0, // Initial value for joined players
+      status: 'waiting', // Initial status
     };
     setSessions([...sessions, sessionToAdd]);
     setNewSession({

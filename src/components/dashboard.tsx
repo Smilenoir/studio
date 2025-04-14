@@ -8,6 +8,8 @@ interface GameSession {
   maxPlayers: number;
   questionGroupId: string;
   timePerQuestion?: number;
+  joinedPlayers: number; // Добавлено: количество подключенных игроков
+  status: 'active' | 'waiting' | 'finished'; // Добавлено: статус игры
 }
 
 export const Dashboard = () => {
@@ -30,7 +32,7 @@ export const Dashboard = () => {
         <ul>
           {activeSessions.map(session => (
             <li key={session.id}>
-              {session.name} - Max Players: {session.maxPlayers}
+              {session.name} - Max Players: {session.maxPlayers}, Joined: {session.joinedPlayers}, Status: {session.status}
             </li>
           ))}
         </ul>
@@ -38,4 +40,5 @@ export const Dashboard = () => {
     </div>
   );
 };
+
 
