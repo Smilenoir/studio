@@ -23,35 +23,84 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {supabase} from "@/lib/supabaseClient";
+import {useToast} from "@/hooks/use-toast";
 
 interface GameSession {
   id: string;
-  name: string;
+  sessionName: string;
   maxPlayers: number;
   questionGroupId: string;
-  timePerQuestion?: number;
-  joinedPlayers: number;
-  status: 'active' | 'waiting' | 'finished';
+  timePerQuestionInSec: number;
+  createdAt: string;
+  status: 'waiting' | 'active' | 'finished';
 }
 
 export const Dashboard = () => {
   const [activeSessions, setActiveSessions] = useState<GameSession[]>([]);
   const [open, setOpen] = useState(false);
+    const {toast} = useToast();
 
   useEffect(() => {
-    const storedSessions = localStorage.getItem('gameSessions');
-    if (storedSessions) {
-      setActiveSessions(JSON.parse(storedSessions));
-    }
+    fetchSessions();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('gameSessions', JSON.stringify(activeSessions));
-  }, [activeSessions]);
+  const fetchSessions = async () => {
+    try {
+      const {data, error} = await supabase
+        .from('game_sessions')
+        .select('*');
+      if (error) {
+        console.error('Error fetching game sessions:', JSON.stringify(error));
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to fetch game sessions."
+          })
+        return;
+      }
+      setActiveSessions(data || []);
+    } catch (error) {
+      console.error('Unexpected error fetching game sessions:', JSON.stringify(error));
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Unexpected error fetching game sessions."
+        })
+    }
+  };
 
-  const deleteAllSessions = () => {
-    setActiveSessions([]);
-    setOpen(false);
+  const deleteAllSessions = async () => {
+    try {
+      const {error} = await supabase
+        .from('game_sessions')
+        .delete()
+        .neq('id', 'null'); // Delete all rows
+
+      if (error) {
+        console.error('Error deleting all sessions:', JSON.stringify(error));
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to delete all sessions."
+          })
+        return;
+      }
+
+      setActiveSessions([]);
+      setOpen(false);
+        toast({
+            title: "Success",
+            description: "All sessions deleted successfully."
+        })
+    } catch (error) {
+      console.error('Unexpected error deleting all sessions:', JSON.stringify(error));
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Unexpected error deleting all sessions."
+        })
+    }
   };
 
   return (
@@ -95,8 +144,8 @@ export const Dashboard = () => {
             ) : (
               activeSessions.map(session => (
                 <TableRow key={session.id}>
-                  <TableCell>{session.name}</TableCell>
-                  <TableCell>{session.joinedPlayers !== undefined ? `${session.joinedPlayers}/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
+                  <TableCell>{session.sessionName}</TableCell>
+                  <TableCell>{session.maxPlayers !== undefined ? `0/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
                   <TableCell>{session.status}</TableCell>
                 </TableRow>
               ))
