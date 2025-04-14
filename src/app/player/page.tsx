@@ -120,6 +120,18 @@ export default function PlayerPage() {
                 return;
             }
 
+            if (existingUser) {
+                setAlertOpen(true);
+                setAlertTitle('Error');
+                setAlertDescription("Nickname already exists. Please choose a different one.");
+                toast({
+                    title: "Error",
+                    description: "Nickname already exists. Please choose a different one.",
+                    variant: "destructive"
+                });
+                return;
+            }
+
 
             const {error: insertError} = await supabase
                 .from('users')
