@@ -213,6 +213,10 @@ export default function PlayerPage() {
       if (userError) throw userError;
 
       if (!user) {
+          setAlertOpen(true);
+          setAlertTitle('Error');
+          setAlertDescription('Invalid credentials');
+
           toast({
               title: "Error",
               description: "User not found",
@@ -223,6 +227,9 @@ export default function PlayerPage() {
 
 
       if (password !== user.password){
+          setAlertOpen(true);
+          setAlertTitle('Error');
+          setAlertDescription('Invalid credentials');
           toast({
               title: "Error",
               description: "Invalid credentials",
@@ -468,5 +475,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
