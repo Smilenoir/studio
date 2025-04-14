@@ -151,10 +151,39 @@ export default function PlayerPage() {
                 return;
             }
 
-           toast({
-                        title: "Success",
-                        description: 'Account created successfully. You can sign in now.',
-                    });
+
+             // Automatically sign in after successful account creation
+            const { data: user, error: userError } = await supabase
+                .from('users')
+                .select('*')
+                .eq('nickname', nickname)
+                .maybeSingle();
+
+            if (userError) {
+                toast({
+                    title: "Error",
+                    description: userError.message,
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            if (user) {
+                const userSession: UserSession = {
+                    nickname: user.nickname,
+                    id: user.id,
+                };
+
+                setSession(userSession);
+                await saveSession(userSession);
+
+                toast({
+                    title: "Success",
+                    description: "Signed up and signed in successfully!"
+                });
+            }
+
+
 
 
         } catch (error: any) {
@@ -439,4 +468,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
