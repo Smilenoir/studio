@@ -198,7 +198,6 @@ export default function PlayerPage() {
         {!session ? (
           <Card className="border">
             <CardHeader>
-              <CardTitle>Authentication</CardTitle>
               <CardDescription>Sign in or create an account to join the game.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
@@ -325,4 +324,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
