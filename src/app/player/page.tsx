@@ -73,30 +73,61 @@ export default function PlayerPage() {
 
   async function handleSignUp() {
     try {
-      setLoading(true)
+      setLoading(true);
+
+      // Check if nickname already exists
+      const { data: existingUser, error: selectError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('nickname', nickname);
+
+      if (selectError) {
+        throw selectError;
+      }
+
+      if (existingUser && existingUser.length > 0) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Nickname already exists. Please choose a different one.",
+        });
+        return;
+      }
+
+
       const { data, error } = await supabase.auth.signUp({
-        email: nickname + '@example.com',
-        password,
+        email: nickname + '@example.com', // Dummy email
+        password: password,
         options: {
           data: {
             nickname: nickname,
-          }
-        }
-      })
+          },
+        },
+      });
 
-      if (error) throw error
+      if (error) throw error;
+
+      // Automatically sign in after successful signup
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: nickname + '@example.com',
+        password: password,
+      });
+
+      if (signInError) throw signInError;
+
+
       toast({
         title: "Success",
-        description: "Check your email for confirmation link."
-      })
+        description: "Account created successfully.",
+      });
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Error",
         description: error.error_description || error.message,
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -207,7 +238,7 @@ export default function PlayerPage() {
                 }}
                 disabled={loading}
               >
-                Sign Up
+                Create
               </Button>
             </CardContent>
           </Card>
@@ -290,3 +321,4 @@ export default function PlayerPage() {
     </div>
   );
 }
+
