@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import {
@@ -127,12 +127,18 @@ export default function PlayerPage() {
                 throw insertError;
             }
 
-            setAlertTitle("Success");
-            setAlertDescription('Account created successfully. You can now sign in.');
-            setAlertOpen(true);
-
             // Automatically sign in the user after successful registration
-            //await handleSignIn();
+            const userSession: UserSession = {
+                nickname: nickname,
+                id: nickname,
+            };
+
+            setSession(userSession);
+            await saveSession(userSession);
+
+            setAlertTitle("Success");
+            setAlertDescription('Account created successfully. You are now signed in.');
+            setAlertOpen(true);
 
 
         } catch (error) {
@@ -289,12 +295,27 @@ export default function PlayerPage() {
           </Card>
         ) : (
           <Card className="border">
-            <CardHeader>
+            <CardHeader className="flex justify-between">
               <CardTitle>Welcome!</CardTitle>
-              <CardDescription>
-                Hello, {session?.nickname}! GL HF!
-              </CardDescription>
+              {session.nickname && (
+                  <Button
+                      variant="outline"
+                      className="h-10 w-10 p-0 text-white rounded-full"
+                      onClick={() => {
+                          handleSignOut();
+                      }}
+                      disabled={loading}
+                  >
+                      <LogOut
+                          className="h-6 w-6"
+                          aria-hidden="true"
+                      />
+                  </Button>
+              )}
             </CardHeader>
+            <CardDescription>
+                Hello, {session?.nickname}! GL HF!
+            </CardDescription>
           </Card>
         )}
       </div>
@@ -313,18 +334,6 @@ export default function PlayerPage() {
             </AlertDialogContent>
           </AlertDialog>
 
-        {session.nickname && (
-              <Button
-                  variant="destructive"
-                  className="absolute bottom-4 right-4"
-                  onClick={() => {
-                      handleSignOut();
-                  }}
-                  disabled={loading}
-              >
-                  Sign Out
-              </Button>
-          )}
 
 
       {/* Game Session List */}
@@ -384,4 +393,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
