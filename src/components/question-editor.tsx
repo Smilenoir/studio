@@ -31,7 +31,7 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion: React.Dispatch<React.SetStateAction<Omit<Question, 'id'>>>] = useState({
+  const [newQuestion, setNewQuestion: React.Dispatch<React.SetStateAction<Omit<Question, 'id'>>>] = useState<Omit<Question, 'id'>>({
     group: '',
     type: '' as 'multipleChoice' | 'numerical',
     text: '',
