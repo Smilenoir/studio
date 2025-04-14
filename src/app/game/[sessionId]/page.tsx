@@ -10,6 +10,16 @@ import {TimerDisplay} from "@/components/timer-display";
 import {useParams} from 'next/navigation';
 import {Button} from "@/components/ui/button";
 import {ArrowLeft} from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 
 interface Question {
   id: string;
@@ -30,6 +40,12 @@ interface GameSession {
   createdAt: string;
   status: 'waiting' | 'active' | 'finished';
   players: string[];
+  question_index: number | null;
+}
+
+interface UserSession {
+  nickname: string | null;
+  id: string | null;
 }
 
 interface UserAnswer {
@@ -43,7 +59,6 @@ export default function GamePage() {
   const [question, setQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [time, setTime] = useState(0);
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
@@ -54,21 +69,10 @@ export default function GamePage() {
   const [timeExpired, setTimeExpired] = useState(false);
   const [userAnswer, setUserAnswer] = useState<UserAnswer | null>(null);
   const [numericalAnswers, setNumericalAnswers] = useState<UserAnswer[]>([]);
-  const [ranking, setRanking] = useState<{ userId: string; score: number; timestamp: number; }[]>([]);
-  const rankingRef = useRef(ranking);
-
-  useEffect(() => {
-    rankingRef.current = ranking;
-  }, [ranking]);
-
-  const getSession = () => {
-    const storedSession = localStorage.getItem('userSession');
-    if (storedSession) {
-      return JSON.parse(storedSession);
-    }
-
-    return null;
-  }
+  const [overallRanking, setOverallRanking] = useState<{ userId: string; score: number; }[]>([]); // Overall ranking
+  const [questionRanking, setQuestionRanking] = useState<{ userId: string; score: number; timestamp: number; }[]>([]); // Question ranking
+  const session = JSON.parse(localStorage.getItem('userSession') || '{}');
+  const [isNumericalAnswerSubmitted, setIsNumericalAnswerSubmitted] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -105,7 +109,10 @@ export default function GamePage() {
 
       setQuestions(fetchedQuestions || []);
       if (fetchedQuestions && fetchedQuestions.length > 0) {
-        setQuestion(fetchedQuestions[0]);
+        // Fetch the question index from the game session
+        const initialQuestionIndex = session.question_index !== null ? session.question_index : 0;
+        setCurrentQuestionIndex(initialQuestionIndex);
+        setQuestion(fetchedQuestions[initialQuestionIndex] || null);
       }
     };
 
@@ -162,13 +169,28 @@ export default function GamePage() {
     const zScore = Math.abs(correctAnswer - userAnswerValue);
 
     setUserAnswer({
-      userId: getSession().id,
+      userId: session.id,
       answer: answer,
       zScore: zScore,
       timestamp: Date.now(),
     });
 
     return zScore;
+  };
+
+  const updateQuestionIndex = async (nextIndex: number) => {
+    try {
+      const { error: updateError } = await supabase
+        .from('game_sessions')
+        .update({ question_index: nextIndex })
+        .eq('id', sessionId);
+
+      if (updateError) {
+        console.error("Error updating question index:", updateError);
+      }
+    } catch (error) {
+      console.error("Unexpected error:", error);
+    }
   };
 
   const handleSubmitAnswer = () => {
@@ -178,6 +200,8 @@ export default function GamePage() {
     if (question.questionType === 'multipleChoice') {
       const isCorrect = selectedAnswer === question.correctAnswer;
       score = isCorrect ? calculateMultipleChoiceScore() : 0;
+      updateOverallRanking(session.id, score); // Update overall ranking for multiple choice
+      handleNextQuestion();
     } else if (question.questionType === 'numerical') {
       score = calculateNumericalScore(selectedAnswer);
     }
@@ -190,9 +214,9 @@ export default function GamePage() {
 
     if (question.questionType === 'numerical') {
       setTimeExpired(true);
+      setIsNumericalAnswerSubmitted(true);
       setNumericalAnswers(prevAnswers => {
         const newAnswers = [...prevAnswers, userAnswer];
-        console.log(newAnswers);
         return newAnswers;
       });
     } else {
@@ -200,8 +224,25 @@ export default function GamePage() {
     }
   };
 
+  const updateOverallRanking = (userId: string, score: number) => {
+    setOverallRanking(prevRanking => {
+      const existingUserIndex = prevRanking.findIndex(entry => entry.userId === userId);
+
+      if (existingUserIndex !== -1) {
+        const updatedRanking = [...prevRanking];
+        updatedRanking[existingUserIndex] = {
+          ...updatedRanking[existingUserIndex],
+          score: updatedRanking[existingUserIndex].score + score,
+        };
+        return updatedRanking;
+      } else {
+        return [...prevRanking, { userId, score }];
+      }
+    });
+  };
+
   useEffect(() => {
-    if (timeExpired && question?.questionType === 'numerical' && numericalAnswers.length > 0) {
+    if (timeExpired && question?.questionType === 'numerical' && numericalAnswers.length > 0 && isNumericalAnswerSubmitted) {
       const sortedAnswers = [...numericalAnswers].sort((a, b) => {
         if (a.zScore !== b.zScore) {
           return (a.zScore || 0) - (b.zScore || 0);
@@ -209,16 +250,22 @@ export default function GamePage() {
         return a.timestamp - b.timestamp;
       });
 
-      const newRanking = sortedAnswers.map((answer, index) => ({
+      const newQuestionRanking = sortedAnswers.map((answer, index) => ({
         userId: answer.userId,
         score: (sortedAnswers.length - index) * 2,
         timestamp: answer.timestamp,
       }));
 
-      setRanking(newRanking);
+      setQuestionRanking(newQuestionRanking);
+
+      newQuestionRanking.forEach(answer => {
+        updateOverallRanking(answer.userId, answer.score); // Update overall ranking for numerical
+      });
+
       handleNextQuestion();
+      setIsNumericalAnswerSubmitted(false);
     }
-  }, [timeExpired, numericalAnswers, question]);
+  }, [timeExpired, numericalAnswers, question, session, isNumericalAnswerSubmitted]);
 
   const handleNextQuestion = () => {
     setSelectedAnswer('');
@@ -226,11 +273,13 @@ export default function GamePage() {
     setTimeExpired(false);
     setUserAnswer(null);
     setNumericalAnswers([]);
+    setQuestionRanking([]);
 
     setCurrentQuestionIndex(prevIndex => {
       const nextIndex = prevIndex + 1;
       if (nextIndex < questions.length) {
         setQuestion(questions[nextIndex]);
+        updateQuestionIndex(nextIndex); // Update the question index in the database
         return nextIndex;
       } else {
         setQuestion(null);
@@ -283,18 +332,9 @@ export default function GamePage() {
     if (!sessionId) return;
 
     try {
-      const { data: session, error: sessionError } = await supabase
-        .from('game_sessions')
-        .select('question_index')
-        .eq('id', sessionId)
-        .single();
+      if (gameSession?.question_index === null) return;
 
-      if (sessionError) {
-        console.error("Error fetching session:", sessionError);
-        return;
-      }
-
-      const nextIndex = (session?.question_index || 0) + 1;
+      const nextIndex = gameSession?.question_index + 1;
 
       if (nextIndex < questions.length) {
         const { error: updateError } = await supabase
@@ -333,42 +373,99 @@ export default function GamePage() {
       </div>
       <h1 className="text-3xl font-bold mb-4">Game Page</h1>
       {isTimed && question && <TimerDisplay time={time} />}
-      {question ? (
-        <>
-          <QuestionDisplay question={question.questionText} />
-          {question.questionType === 'multipleChoice' ? (
+
+      <div className="flex w-full max-w-6xl justify-between">
+        {/* Overall Ranking Table */}
+        <Card className="w-1/3">
+          <CardHeader>
+            <CardTitle>Overall Ranking</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overallRanking.sort((a, b) => b.score - a.score).map((user, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{user.userId}</TableCell>
+                    <TableCell>{user.score}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col items-center w-1/3">
+          {/* Question Display */}
+          {question ? (
             <>
-              <AnswerInput
-                options={question.answers}
-                onAnswer={handleAnswer}
-                selectedAnswer={selectedAnswer}
-                onSubmit={handleSubmitAnswer}
-                disabled={timeExpired}
-              />
-              {timeExpired && <div>Time's up!</div>}
+              <QuestionDisplay question={question.questionText} />
+              {question.questionType === 'multipleChoice' ? (
+                <>
+                  <AnswerInput
+                    options={question.answers}
+                    onAnswer={handleAnswer}
+                    selectedAnswer={selectedAnswer}
+                    onSubmit={handleSubmitAnswer}
+                    disabled={timeExpired}
+                  />
+                  {timeExpired && <div>Time's up!</div>}
+                </>
+              ) : (
+                <div>
+                  <input
+                    type="number"
+                    value={selectedAnswer}
+                    onChange={(e) => handleAnswer(e.target.value)}
+                    placeholder="Enter your answer"
+                    disabled={timeExpired}
+                  />
+                  <button onClick={handleSubmitAnswer} disabled={timeExpired}>Submit Answer</button>
+                  {timeExpired && <div>Time's up!</div>}
+                </div>
+              )}
             </>
           ) : (
-            <div>
-              <input
-                type="number"
-                value={selectedAnswer}
-                onChange={(e) => handleAnswer(e.target.value)}
-                placeholder="Enter your answer"
-                disabled={timeExpired}
-              />
-              <button onClick={handleSubmitAnswer} disabled={timeExpired}>Submit Answer</button>
-              {timeExpired && <div>Time's up!</div>}
-            </div>
+            <ResultsDisplay results={results} />
           )}
-        </>
-      ) : (
-        <ResultsDisplay results={results} />
-      )}
-      {isObserver && (
-        <Button onClick={handleNextAdminQuestion}>
-          Next Question
-        </Button>
-      )}
+          {isObserver && (
+            <Button onClick={handleNextAdminQuestion}>
+              Next Question
+            </Button>
+          )}
+        </div>
+
+        {/* Question Ranking Table */}
+        <Card className="w-1/3">
+          <CardHeader>
+            <CardTitle>Question Ranking</CardTitle>
+            <CardDescription>Ranking for the current question</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {questionRanking.sort((a, b) => b.score - a.score).map((user, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{user.userId}</TableCell>
+                    <TableCell>{user.score}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
