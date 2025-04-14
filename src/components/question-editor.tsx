@@ -1,13 +1,12 @@
 'use client';
 
-import {useState} from 'react';
+import {useState, useEffect} from 'react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Textarea} from '@/components/ui/textarea';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {useEffect} from 'react';
 import {useToast} from "@/hooks/use-toast"
 import {supabase} from "@/lib/supabaseClient";
 
@@ -18,6 +17,11 @@ interface Question {
   text: string;
   options: string[];
   correctAnswer: string;
+}
+
+interface Group {
+  id: string;
+  name: string;
 }
 
 const generateId = (): string => {
@@ -34,10 +38,14 @@ export const QuestionEditor = () => {
     correctAnswer: '',
   });
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
-    const { toast } = useToast()
+  const { toast } = useToast();
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupError, setGroupError] = useState<string | null>(null);
+
 
   useEffect(() => {
     fetchQuestions();
+    fetchGroups();
   }, []);
 
   const fetchQuestions = async () => {
@@ -63,6 +71,29 @@ export const QuestionEditor = () => {
     }
   };
 
+  const fetchGroups = async () => {
+    try {
+      const { data, error } = await supabase.from('groups').select('*');
+      if (error) {
+        console.error('Error fetching groups:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch groups."
+        });
+        return;
+      }
+      setGroups(data || []);
+    } catch (error) {
+      console.error('Unexpected error fetching groups:', JSON.stringify(error));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error fetching groups."
+      });
+    }
+  };
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const {name, value} = e.target;
@@ -79,9 +110,29 @@ export const QuestionEditor = () => {
 
   const handleSelectChange = (value: string, name: string) => {
     setNewQuestion({...newQuestion, [name]: value});
+    if (name === 'group') {
+      setGroupError(null); // Clear group error when a group is selected
+    }
+  };
+
+  const validateQuestion = (): boolean => {
+    if (!newQuestion.group) {
+      setGroupError('Please select a group.');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select a group."
+      });
+      return false;
+    }
+    return true;
   };
 
   const addQuestion = async () => {
+    if (!validateQuestion()) {
+      return;
+    }
+
     const newId = generateId();
     const questionToAdd: Question = {id: newId, ...newQuestion};
 
@@ -159,7 +210,7 @@ export const QuestionEditor = () => {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Unexpected error updating question."
+          description: "Failed to update question."
         });
       }
     }
@@ -190,7 +241,7 @@ export const QuestionEditor = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Unexpected error deleting question."
+        description: "Failed to delete question."
       });
     }
   };
@@ -208,16 +259,20 @@ export const QuestionEditor = () => {
           <CardDescription>Create, edit, and manage questions.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+
           <div className="grid gap-2">
             <Label htmlFor="group">Group</Label>
-            <Input
-              type="text"
-              id="group"
-              name="group"
-              value={newQuestion.group}
-              onChange={handleInputChange}
-              placeholder="Enter group name"
-            />
+            <Select onValueChange={(value) => handleSelectChange(value, 'group')}>
+              <SelectTrigger id="group">
+                <SelectValue placeholder="Select a group"/>
+              </SelectTrigger>
+              <SelectContent>
+                {groups.map(group => (
+                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {groupError && <p className="text-red-500">{groupError}</p>}
           </div>
 
           <div className="grid gap-2">
