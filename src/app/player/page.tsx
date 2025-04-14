@@ -1,6 +1,5 @@
 'use client';
 
-import * as bcrypt from 'bcryptjs';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from "lucide-react";
@@ -104,12 +103,12 @@ export default function PlayerPage() {
         return;
       }
 
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(password, saltRounds);
+      // const saltRounds = 10;
+      // const hashedPassword = await bcrypt.hash(password, saltRounds);
 
       const { error: insertError } = await supabase
         .from('users')
-        .insert({ nickname, password: hashedPassword })
+        .insert({ nickname, password })
         .select();
 
       if (insertError) {
@@ -153,12 +152,19 @@ export default function PlayerPage() {
       }
 
       // Compare the entered password with the hashed password
-      const isPasswordCorrect = await bcrypt.compare(password, user.password);
-      if (!isPasswordCorrect) {
-        setAlertTitle("Error");
-        setAlertDescription("Invalid credentials");
-        setAlertOpen(true);
-        return;
+      // const isPasswordCorrect = await bcrypt.compare(password, user.password);
+      // if (!isPasswordCorrect) {
+      //   setAlertTitle("Error");
+      //   setAlertDescription("Invalid credentials");
+      //   setAlertOpen(true);
+      //   return;
+      // }
+
+      if (password !== user.password){
+          setAlertTitle("Error");
+          setAlertDescription("Invalid credentials");
+          setAlertOpen(true);
+          return;
       }
 
 
