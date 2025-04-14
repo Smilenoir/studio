@@ -44,6 +44,7 @@ export default function GamePage() {
   const router = useRouter();
   const [isTimed, setIsTimed] = useState(false);
   const [isObserver, setIsObserver] = useState(false); // New state for observer mode
+  const [timeExpired, setTimeExpired] = useState(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -96,10 +97,13 @@ export default function GamePage() {
   useEffect(() => {
     if (isTimed && question) {
       setTime(gameSession?.timePerQuestionInSec || 0);
+      setTimeExpired(false); // Reset timeExpired when a new question is loaded
+
       const timerId = setInterval(() => {
         setTime(prevTime => {
           if (prevTime <= 0) {
             clearInterval(timerId);
+            setTimeExpired(true);
             handleSubmitAnswer();
             return 0;
           }
@@ -135,6 +139,7 @@ export default function GamePage() {
   const handleNextQuestion = () => {
     setSelectedAnswer('');
     setTime(gameSession?.timePerQuestionInSec || 0);
+    setTimeExpired(false);
     setCurrentQuestionIndex(prevIndex => {
       const nextIndex = prevIndex + 1;
       if (nextIndex < questions.length) {
@@ -245,12 +250,16 @@ export default function GamePage() {
         <>
           <QuestionDisplay question={question.questionText} />
           {question.questionType === 'multipleChoice' ? (
-            <AnswerInput
-              options={question.answers}
-              onAnswer={handleAnswer}
-              selectedAnswer={selectedAnswer}
-              onSubmit={handleSubmitAnswer}
-            />
+            <>
+              <AnswerInput
+                options={question.answers}
+                onAnswer={handleAnswer}
+                selectedAnswer={selectedAnswer}
+                onSubmit={handleSubmitAnswer}
+                disabled={timeExpired}
+              />
+              {timeExpired && <div>Time's up!</div>}
+            </>
           ) : (
             <div>
               <input
@@ -258,8 +267,10 @@ export default function GamePage() {
                 value={selectedAnswer}
                 onChange={(e) => handleAnswer(e.target.value)}
                 placeholder="Enter your answer"
+                disabled={timeExpired}
               />
-              <button onClick={handleSubmitAnswer}>Submit Answer</button>
+              <button onClick={handleSubmitAnswer} disabled={timeExpired}>Submit Answer</button>
+              {timeExpired && <div>Time's up!</div>}
             </div>
           )}
         </>
