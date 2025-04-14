@@ -9,6 +9,7 @@ import {Textarea} from '@/components/ui/textarea';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {useEffect} from 'react';
 import {useToast} from "@/hooks/use-toast"
+import {supabase} from "@/lib/supabaseClient";
 
 interface Question {
   id: string;
@@ -36,8 +37,32 @@ export const QuestionEditor = () => {
     const { toast } = useToast()
 
   useEffect(() => {
-    console.log('Questions updated:', questions);
-  }, [questions]);
+    fetchQuestions();
+  }, []);
+
+  const fetchQuestions = async () => {
+    try {
+      const { data, error } = await supabase.from('questions').select('*');
+      if (error) {
+        console.error('Error fetching questions:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch questions."
+        });
+        return;
+      }
+      setQuestions(data || []);
+    } catch (error) {
+      console.error('Unexpected error fetching questions:', JSON.stringify(error));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error fetching questions."
+      });
+    }
+  };
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const {name, value} = e.target;
@@ -56,15 +81,40 @@ export const QuestionEditor = () => {
     setNewQuestion({...newQuestion, [name]: value});
   };
 
-  const addQuestion = () => {
+  const addQuestion = async () => {
     const newId = generateId();
     const questionToAdd: Question = {id: newId, ...newQuestion};
-    setQuestions([...questions, questionToAdd]);
-    setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
+
+    try {
+      const { error } = await supabase
+        .from('questions')
+        .insert([questionToAdd])
+        .select();
+
+      if (error) {
+        console.error('Error adding question:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to add question."
+        });
+        return;
+      }
+
+      setQuestions([...questions, questionToAdd]);
+      setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
       toast({
-          title: "Success",
-          description: "Question added successfully."
-      })
+        title: "Success",
+        description: "Question added successfully."
+      });
+    } catch (error) {
+      console.error('Unexpected error adding question:', JSON.stringify(error));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error adding question."
+      });
+    }
   };
 
   const startEditing = (id: string) => {
@@ -75,28 +125,74 @@ export const QuestionEditor = () => {
     }
   };
 
-  const updateQuestion = () => {
+  const updateQuestion = async () => {
     if (editingQuestionId) {
-      const updatedQuestions = questions.map(q =>
-        q.id === editingQuestionId ? {id: editingQuestionId, ...newQuestion} : q
-      );
-      setQuestions(updatedQuestions);
-      setEditingQuestionId(null);
-      setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
+      try {
+        const { error } = await supabase
+          .from('questions')
+          .update({...newQuestion})
+          .eq('id', editingQuestionId)
+          .select();
+
+        if (error) {
+          console.error('Error updating question:', JSON.stringify(error));
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to update question."
+          });
+          return;
+        }
+
+        const updatedQuestions = questions.map(q =>
+          q.id === editingQuestionId ? {id: editingQuestionId, ...newQuestion} : q
+        );
+        setQuestions(updatedQuestions);
+        setEditingQuestionId(null);
+        setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
         toast({
-            title: "Success",
-            description: "Question updated successfully."
-        })
+          title: "Success",
+          description: "Question updated successfully."
+        });
+      } catch (error) {
+        console.error('Unexpected error updating question:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Unexpected error updating question."
+        });
+      }
     }
   };
 
-  const deleteQuestion = (id: string) => {
-    const updatedQuestions = questions.filter(q => q.id !== id);
-    setQuestions(updatedQuestions);
+  const deleteQuestion = async (id: string) => {
+    try {
+      const { error } = await supabase.from('questions').delete().eq('id', id);
+
+      if (error) {
+        console.error('Error deleting question:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to delete question."
+        });
+        return;
+      }
+
+      const updatedQuestions = questions.filter(q => q.id !== id);
+      setQuestions(updatedQuestions);
       toast({
-          title: "Success",
-          description: "Question deleted successfully."
-      })
+        title: "Success",
+        description: "Question deleted successfully."
+      });
+    } catch (error) {
+      console.error('Unexpected error deleting question:', JSON.stringify(error));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error deleting question."
+      });
+    }
   };
 
   const addOption = () => {

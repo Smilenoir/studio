@@ -28,7 +28,7 @@ export const GroupEditor = () => {
     try {
       const {data, error} = await supabase.from('groups').select('*');
       if (error) {
-        console.error('Error fetching groups:', error);
+        console.error('Error fetching groups:', JSON.stringify(error));
           toast({
               variant: "destructive",
               title: "Error",
@@ -38,7 +38,7 @@ export const GroupEditor = () => {
       }
       setGroups(data || []);
     } catch (error) {
-      console.error('Unexpected error fetching groups:', error);
+      console.error('Unexpected error fetching groups:', JSON.stringify(error));
         toast({
             variant: "destructive",
             title: "Error",
@@ -82,7 +82,7 @@ export const GroupEditor = () => {
         .select();
 
       if (error) {
-        console.error('Error adding group:', error);
+        console.error('Error adding group:', JSON.stringify(error));
           toast({
               variant: "destructive",
               title: "Error",
@@ -98,7 +98,7 @@ export const GroupEditor = () => {
             description: "Group added successfully."
         })
     } catch (error) {
-      console.error('Unexpected error adding group:', error);
+      console.error('Unexpected error adding group:', JSON.stringify(error));
         toast({
             variant: "destructive",
             title: "Error",
@@ -145,7 +145,7 @@ export const GroupEditor = () => {
             .select();
 
         if (error) {
-          console.error('Error updating group:', error);
+          console.error('Error updating group:', JSON.stringify(error));
             toast({
                 variant: "destructive",
                 title: "Error",
@@ -165,7 +165,7 @@ export const GroupEditor = () => {
               description: "Group updated successfully."
           })
       } catch (error) {
-        console.error('Unexpected error updating group:', error);
+        console.error('Unexpected error updating group:', JSON.stringify(error));
           toast({
               variant: "destructive",
               title: "Error",
@@ -180,7 +180,7 @@ export const GroupEditor = () => {
       const {error} = await supabase.from('groups').delete().eq('id', id);
 
       if (error) {
-        console.error('Error deleting group:', error);
+        console.error('Error deleting group:', JSON.stringify(error));
           toast({
               variant: "destructive",
               title: "Error",
@@ -196,7 +196,7 @@ export const GroupEditor = () => {
             description: "Group deleted successfully."
         })
     } catch (error) {
-      console.error('Unexpected error deleting group:', error);
+      console.error('Unexpected error deleting group:', JSON.stringify(error));
         toast({
             variant: "destructive",
             title: "Error",
