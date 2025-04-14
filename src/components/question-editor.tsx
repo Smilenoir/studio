@@ -8,6 +8,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Textarea} from '@/components/ui/textarea';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {useEffect} from 'react';
+import {useToast} from "@/hooks/use-toast"
 
 interface Question {
   id: string;
@@ -32,6 +33,7 @@ export const QuestionEditor = () => {
     correctAnswer: '',
   });
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+    const { toast } = useToast()
 
   useEffect(() => {
     console.log('Questions updated:', questions);
@@ -59,6 +61,10 @@ export const QuestionEditor = () => {
     const questionToAdd: Question = {id: newId, ...newQuestion};
     setQuestions([...questions, questionToAdd]);
     setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
+      toast({
+          title: "Success",
+          description: "Question added successfully."
+      })
   };
 
   const startEditing = (id: string) => {
@@ -77,12 +83,20 @@ export const QuestionEditor = () => {
       setQuestions(updatedQuestions);
       setEditingQuestionId(null);
       setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
+        toast({
+            title: "Success",
+            description: "Question updated successfully."
+        })
     }
   };
 
   const deleteQuestion = (id: string) => {
     const updatedQuestions = questions.filter(q => q.id !== id);
     setQuestions(updatedQuestions);
+      toast({
+          title: "Success",
+          description: "Question deleted successfully."
+      })
   };
 
   const addOption = () => {
