@@ -189,7 +189,9 @@ export default function PlayerPage() {
             });
 
 
-       setAlertOpen(false);
+       setAlertOpen(true);
+       setAlertTitle('Success');
+       setAlertDescription('Signed in successfully!');
     } catch (error: any) {
         toast({
                         title: "Error",
@@ -410,4 +412,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
