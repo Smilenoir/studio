@@ -268,7 +268,9 @@ export const QuestionEditor = () => {
               </SelectTrigger>
               <SelectContent>
                 {groups.map(group => (
-                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                  group.id ? (
+                    <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                  ) : null
                 ))}
               </SelectContent>
             </Select>
