@@ -26,6 +26,7 @@ import {
 import {supabase} from "@/lib/supabaseClient";
 import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
+import {useRouter} from "next/navigation";
 
 interface GameSession {
   id: string;
@@ -48,6 +49,7 @@ export const Dashboard = () => {
     const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
   const [open, setOpen] = useState(false);
     const {toast} = useToast();
+    const router = useRouter();
 
   useEffect(() => {
     fetchSessions();
@@ -170,6 +172,10 @@ export const Dashboard = () => {
               title: "Success",
               description: "Game session started successfully."
           });
+
+          // Redirect the admin to the game session page
+          router.push(`/game/${sessionId}`);
+
       } catch (error) {
           console.error('Unexpected error starting game session:', JSON.stringify(error));
           toast({
