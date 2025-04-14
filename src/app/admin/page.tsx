@@ -12,8 +12,12 @@ export default function AdminPage() {
   const router = useRouter();
   return (
     <div className="flex flex-col items-center justify-center min-h-screen py-2 bg-gray-900 text-white">
+      <div className="absolute top-4 right-4">
+        <Button variant="outline" className="bg-black border-gray-500 text-white" onClick={() => router.push('/')}>
+          Back to Main Menu
+        </Button>
+      </div>
       <h1 className="text-3xl font-bold mb-4">Admin Page</h1>
-      <Button onClick={() => router.push('/')}>Back to Main Menu</Button>
       <Tabs defaultValue="dashboard" className="w-full max-w-4xl">
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
