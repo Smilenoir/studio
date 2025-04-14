@@ -30,9 +30,9 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion] = useState<Omit<Question, 'id'>>({
+  const [newQuestion, setNewQuestion]: any = useState<Omit<Question, 'id'>>({
     group: '',
-    type: 'multipleChoice',
+    type: '',
     text: '',
     options: [],
     correctAnswer: '',
@@ -41,6 +41,7 @@ export const QuestionEditor = () => {
   const { toast } = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupError, setGroupError] = useState<string | null>(null);
+  const [typeError, setTypeError] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -113,9 +114,14 @@ export const QuestionEditor = () => {
     if (name === 'group') {
       setGroupError(null); // Clear group error when a group is selected
     }
+    if (name === 'type') {
+      setTypeError(null); // Clear type error when a type is selected
+    }
   };
 
   const validateQuestion = (): boolean => {
+    let isValid = true;
+
     if (!newQuestion.group) {
       setGroupError('Please select a group.');
       toast({
@@ -123,9 +129,20 @@ export const QuestionEditor = () => {
         title: "Error",
         description: "Please select a group."
       });
-      return false;
+      isValid = false;
     }
-    return true;
+
+    if (!newQuestion.type) {
+      setTypeError('Please select a type.');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select a type."
+      });
+      isValid = false;
+    }
+
+    return isValid;
   };
 
   const addQuestion = async () => {
@@ -153,7 +170,7 @@ export const QuestionEditor = () => {
       }
 
       setQuestions([...questions, questionToAdd]);
-      setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
+      setNewQuestion({group: '', type: '', text: '', options: [], correctAnswer: ''});
       toast({
         title: "Success",
         description: "Question added successfully."
@@ -200,7 +217,7 @@ export const QuestionEditor = () => {
         );
         setQuestions(updatedQuestions);
         setEditingQuestionId(null);
-        setNewQuestion({group: '', type: 'multipleChoice', text: '', options: [], correctAnswer: ''});
+        setNewQuestion({group: '', type: '', text: '', options: [], correctAnswer: ''});
         toast({
           title: "Success",
           description: "Question updated successfully."
@@ -288,6 +305,7 @@ export const QuestionEditor = () => {
                 <SelectItem value="numerical">Numerical</SelectItem>
               </SelectContent>
             </Select>
+            {typeError && <p className="text-red-500">{typeError}</p>}
           </div>
 
           <div className="grid gap-2">
