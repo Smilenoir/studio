@@ -280,7 +280,7 @@ export const QuestionEditor = () => {
             <Label htmlFor="group">Group</Label>
             <Select onValueChange={(value) => handleSelectChange(value, 'group')}>
               <SelectTrigger id="group">
-                <SelectValue placeholder="Select a group"/>
+                <SelectValue placeholder="Select a group">{groups.find(group => group.id === newQuestion.group)?.name}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {groups.map(group => (
@@ -297,7 +297,7 @@ export const QuestionEditor = () => {
             <Label htmlFor="type">Type</Label>
             <Select onValueChange={(value) => handleSelectChange(value, 'type')}>
               <SelectTrigger id="type">
-                <SelectValue placeholder="Select a type"/>
+                <SelectValue placeholder="Select a type">{newQuestion.type === 'multipleChoice' ? 'Multiple Choice' : newQuestion.type === 'numerical' ? 'Numerical' : ''}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="multipleChoice">Multiple Choice</SelectItem>
@@ -338,12 +338,14 @@ export const QuestionEditor = () => {
                 <Label htmlFor="correctAnswer">Correct Answer</Label>
                 <Select onValueChange={(value) => handleSelectChange(value, 'correctAnswer')}>
                   <SelectTrigger id="correctAnswer">
-                    <SelectValue placeholder="Select correct answer"/>
+                    <SelectValue placeholder="Select correct answer">{newQuestion.correctAnswer}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {newQuestion.options.map((option, index) => (
-                      <SelectItem key={index} value={option}>{option}</SelectItem>
-                    ))}
+                    {newQuestion.options
+                      .filter(option => option !== '') // Filter out empty strings
+                      .map((option, index) => (
+                        <SelectItem key={index} value={option}>{option}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
