@@ -189,8 +189,6 @@ export default function PlayerPage() {
             });
 
 
-
-
        setAlertOpen(false);
     } catch (error: any) {
         toast({
@@ -412,5 +410,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
