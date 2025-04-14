@@ -5,10 +5,8 @@ import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
-import {Slider} from "@/components/ui/slider";
+import {Slider} from '@/components/ui/slider';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
-import {useToast} from "@/hooks/use-toast"
-import {supabase} from "@/lib/supabaseClient";
 
 interface GameSession {
   id: string;
@@ -20,64 +18,20 @@ interface GameSession {
   status: 'active' | 'waiting' | 'finished';
 }
 
-interface Group {
-  id: string;
-  name: string;
-}
-
-const GAME_SESSIONS_STORAGE_KEY = 'gameSessions';
-
 export const GameSessions = () => {
-  const [sessions, setSessions] = useState<GameSession[]>(() => {
-    if (typeof window !== 'undefined') {
-      const storedSessions = localStorage.getItem(GAME_SESSIONS_STORAGE_KEY);
-      return storedSessions ? JSON.parse(storedSessions) : [];
-    }
-    return [];
-  });
+  const [sessions, setSessions] = useState<GameSession[]>([]);
   const [newSession, setNewSession] = useState({
     name: '',
-    maxPlayers: 10,
+    maxPlayers: 5,
     questionGroupId: '',
-    timePerQuestion: undefined as number | undefined,
+    timePerQuestion: undefined,
   });
-  const [sessionNameError, setSessionNameError] = useState<string | null>(null);
-  const {toast} = useToast();
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(GAME_SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
-    }
-  }, [sessions]);
-
-  const fetchGroups = async () => {
-    try {
-      const {data, error} = await supabase.from('groups').select('*');
-      if (error) {
-        console.error('Error fetching groups:', JSON.stringify(error));
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to fetch groups."
-        });
-        return;
-      }
-      setGroups(data || []);
-    } catch (error) {
-      console.error('Unexpected error fetching groups:', JSON.stringify(error));
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch groups."
-      });
-    }
-  };
+  const [availableGroups, setAvailableGroups] = useState([
+    {id: '1', name: 'Sample Group 1'},
+    {id: '2', name: 'Sample Group 2'},
+    {id: '3', name: 'Sample Group 3'},
+  ]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target;
@@ -88,18 +42,19 @@ export const GameSessions = () => {
     setNewSession({...newSession, maxPlayers: value[0]});
   };
 
-  const handleSelectChange = (value: string, name: string) => {
-    setNewSession({...newSession, [name]: value});
+  const handleSelectChange = (value: string) => {
+    setNewSession({...newSession, questionGroupId: value});
   };
 
   const addSession = () => {
     if (newSession.name.trim() === '') {
-      setSessionNameError('Session name cannot be empty.');
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Session name cannot be empty."
-      });
+      alert('Session name cannot be empty.');
+      return;
+    }
+
+    // Basic time validation (accept non-negative numbers only)
+    if (newSession.timePerQuestion !== undefined && (isNaN(Number(newSession.timePerQuestion)) || Number(newSession.timePerQuestion) < 0)) {
+      alert('Time per question must be a non-negative number.');
       return;
     }
 
@@ -116,77 +71,19 @@ export const GameSessions = () => {
     setSessions([...sessions, sessionToAdd]);
     setNewSession({
       name: '',
-      maxPlayers: 10,
+      maxPlayers: 5,
       questionGroupId: '',
       timePerQuestion: undefined,
-    });
-    toast({
-      title: "Success",
-      description: "Session added successfully."
-    });
-  };
-
-  const startEditingSession = (session: GameSession) => {
-    setEditingSessionId(session.id);
-    setNewSession({
-      name: session.name,
-      maxPlayers: session.maxPlayers,
-      questionGroupId: session.questionGroupId,
-      timePerQuestion: session.timePerQuestion,
-    });
-  };
-
-  const updateSession = () => {
-    if (!editingSessionId) return;
-
-    const updatedSessions = sessions.map(session => {
-      if (session.id === editingSessionId) {
-        return {
-          ...session,
-          name: newSession.name,
-          maxPlayers: newSession.maxPlayers,
-          questionGroupId: newSession.questionGroupId,
-          timePerQuestion: newSession.timePerQuestion,
-        };
-      }
-      return session;
-    });
-
-    setSessions(updatedSessions);
-    setEditingSessionId(null);
-    setNewSession({
-      name: '',
-      maxPlayers: 10,
-      questionGroupId: '',
-      timePerQuestion: undefined,
-    });
-    toast({
-      title: "Success",
-      description: "Session updated successfully."
-    });
-  };
-
-  const restartSession = (sessionId: string) => {
-    const updatedSessions = sessions.map(session => {
-      if (session.id === sessionId) {
-        return {...session, status: 'waiting', joinedPlayers: 0};
-      }
-      return session;
-    });
-    setSessions(updatedSessions);
-    toast({
-      title: "Success",
-      description: "Session restarted successfully."
     });
   };
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
-      {/* Session Editor Form */}
+      {/* Session Creation Form */}
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle>Game Session Editor</CardTitle>
-          <CardDescription>Create and manage game sessions.</CardDescription>
+          <CardTitle>Create Game Session</CardTitle>
+          <CardDescription>Configure and create a new game session.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
@@ -199,34 +96,30 @@ export const GameSessions = () => {
               onChange={handleInputChange}
               placeholder="Enter session name"
             />
-            {sessionNameError && <p className="text-red-500">{sessionNameError}</p>}
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="maxPlayers">Max Players</Label>
+            <Label htmlFor="maxPlayers">Max Players ({newSession.maxPlayers})</Label>
             <Slider
-              defaultValue={[10]}
+              defaultValue={[5]}
               max={30}
               min={1}
               step={1}
-              onValueChange={(value) => handleSliderChange(value)}
+              onValueChange={value => handleSliderChange(value as number[])}
             />
-            <p>Selected: {newSession.maxPlayers} players</p>
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="questionGroupId">Question Group</Label>
-            <Select onValueChange={(value) => handleSelectChange(value, 'questionGroupId')}>
+            <Select onValueChange={handleSelectChange}>
               <SelectTrigger id="questionGroupId">
-                <SelectValue placeholder="Select a group">
-                  {newSession.questionGroupId
-                    ? groups.find(group => group.id === newSession.questionGroupId)?.name
-                    : 'Select a group'}
-                </SelectValue>
+                <SelectValue placeholder="Select a question group"/>
               </SelectTrigger>
               <SelectContent>
-                {groups.map(group => (
-                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                {availableGroups.map(group => (
+                  <SelectItem key={group.id} value={group.id}>
+                    {group.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -238,46 +131,38 @@ export const GameSessions = () => {
               type="number"
               id="timePerQuestion"
               name="timePerQuestion"
-              value={newSession.timePerQuestion || ''}
+              value={newSession.timePerQuestion}
               onChange={handleInputChange}
-              placeholder="Enter time in seconds (optional)"
+              placeholder="Enter time per question"
             />
           </div>
 
-          <Button type="button" onClick={editingSessionId ? updateSession : addSession}>
-            {editingSessionId ? 'Update Session' : 'Create Session'}
+          <Button type="button" onClick={addSession}>
+            Create Session
           </Button>
         </CardContent>
       </Card>
 
-      {/* Session List */}
+      {/* Session List (Placeholder) */}
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Existing Sessions</CardTitle>
           <CardDescription>Manage existing game sessions.</CardDescription>
         </CardHeader>
         <CardContent>
-          {sessions.length === 0 ? (
-            <div>No sessions added yet.</div>
-          ) : (
-            <div className="grid gap-4">
-              {sessions.map(session => (
-                <Card key={session.id}>
-                  <CardHeader>
-                    <CardTitle>{session.name}</CardTitle>
-                    <CardDescription>
-                      Max Players: {session.maxPlayers}, Group: {groups.find(group => group.id === session.questionGroupId)?.name || 'Unknown Group'}, Time per Question: {session.timePerQuestion ? session.timePerQuestion + ' seconds' : 'Unlimited'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex gap-2">
-                    <Button size="sm" onClick={() => startEditingSession(session)}>Edit</Button>
-                    <Button size="sm" onClick={() => restartSession(session.id)}>Restart</Button>
-                    <Button size="sm" variant="destructive">Delete</Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <div>
+            {sessions.length === 0 ? (
+              <div>No sessions created yet.</div>
+            ) : (
+              <ul>
+                {sessions.map(session => (
+                  <li key={session.id}>
+                    {session.name} (Max Players: {session.maxPlayers}, Group: {session.questionGroupId}, Status: {session.status})
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
