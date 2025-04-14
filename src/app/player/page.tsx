@@ -5,8 +5,18 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface GameSession {
   id: string;
@@ -71,21 +81,32 @@ export default function PlayerPage() {
       </div>
 
       {/* Game Session List */}
-      <div className="grid gap-4">
-        {gameSessions.map((session) => (
-          <Card key={session.id}>
-            <CardHeader>
-              <CardTitle>{session.sessionName}</CardTitle>
-              <CardDescription>
-                Players: 0/{session.maxPlayers}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>Time per Question: {session.timePerQuestionInSec === 0 ? '∞' : session.timePerQuestionInSec} seconds</p>
-              <Button>Join Game</Button>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="container mx-auto max-w-4xl">
+        <h2 className="text-2xl font-semibold mb-4">Available Game Sessions</h2>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[200px]">Session Name</TableHead>
+                <TableHead>Players</TableHead>
+                <TableHead>Time per Question</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {gameSessions.map((session) => (
+                <TableRow key={session.id}>
+                  <TableCell className="font-medium">{session.sessionName}</TableCell>
+                  <TableCell>{`0/${session.maxPlayers}`}</TableCell>
+                  <TableCell>{session.timePerQuestionInSec === 0 ? '∞' : `${session.timePerQuestionInSec} seconds`}</TableCell>
+                  <TableCell className="text-right">
+                    <Button size="sm">Join Game</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
