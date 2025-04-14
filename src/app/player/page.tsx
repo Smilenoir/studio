@@ -21,7 +21,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 import { Label } from "@/components/ui/label";
-import {useToast} from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { generateId } from "@/lib/utils";
 
 interface GameSession {
   id: string;
@@ -31,11 +32,12 @@ interface GameSession {
   timePerQuestionInSec: number;
   createdAt: string;
   status: 'waiting' | 'active' | 'finished';
+  players: string[];
 }
 
 interface UserSession {
-    nickname: string | null;
-    id: string | null;
+  nickname: string | null;
+  id: string | null;
 }
 
 
@@ -45,11 +47,11 @@ export default function PlayerPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
-  const [session, setSession] = useState<UserSession>({nickname: null, id: null});
+  const [session, setSession] = useState<UserSession>({ nickname: null, id: null });
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertTitle, setAlertTitle] = useState<string | null>(null);
   const [alertDescription, setAlertDescription] = useState<string | null>(null);
-    const {toast} = useToast();
+  const { toast } = useToast();
 
 
   useEffect(() => {
@@ -59,23 +61,23 @@ export default function PlayerPage() {
 
 
   const loadSession = async () => {
-      // Load session from local storage
-      const storedSession = localStorage.getItem('userSession');
-      if (storedSession) {
-          setSession(JSON.parse(storedSession));
-      }
+    // Load session from local storage
+    const storedSession = localStorage.getItem('userSession');
+    if (storedSession) {
+      setSession(JSON.parse(storedSession));
+    }
   }
 
 
   const saveSession = async (userSession: UserSession) => {
-      // Save session to local storage
-      localStorage.setItem('userSession', JSON.stringify(userSession));
+    // Save session to local storage
+    localStorage.setItem('userSession', JSON.stringify(userSession));
   }
 
 
   const clearSession = async () => {
-      // Remove session from local storage
-      localStorage.removeItem('userSession');
+    // Remove session from local storage
+    localStorage.removeItem('userSession');
   }
 
 
@@ -83,8 +85,7 @@ export default function PlayerPage() {
     try {
       const { data, error } = await supabase
         .from('game_sessions')
-        .select('*')
-        .eq('status', 'waiting'); // Fetch only waiting sessions
+        .select('*');
 
       if (error) {
         console.error('Error fetching game sessions:', error);
@@ -97,95 +98,97 @@ export default function PlayerPage() {
   };
 
 
-    async function handleSignUp() {
-        try {
-            setLoading(true);
+  async function handleSignUp() {
+    try {
+      setLoading(true);
 
-             if (!password) {
-                setAlertOpen(true);
-                setAlertTitle('Error');
-                setAlertDescription("Password cannot be empty. Please enter a password.");
-                toast({
-                    title: "Error",
-                    description: "Password cannot be empty. Please enter a password.",
-                    variant: "destructive"
-                });
-                return;
-            }
+      if (!password) {
+        setAlertOpen(true);
+        setAlertTitle('Error');
+        setAlertDescription("Password cannot be empty. Please enter a password.");
+        toast({
+          title: "Error",
+          description: "Password cannot be empty. Please enter a password.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-            // Check if nickname already exists
-            const {data: existingUser, error: selectError} = await supabase
-                .from('users')
-                .select('*')
-                .eq('nickname', nickname)
-                .maybeSingle();
+      // Check if nickname already exists
+      const { data: existingUser, error: selectError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('nickname', nickname)
+        .maybeSingle();
 
-            if (selectError) {
-                setAlertOpen(true);
-                setAlertTitle('Error');
-                setAlertDescription("Nickname already exists. Please choose a different one.");
-                 toast({
-                        title: "Error",
-                        description: "Nickname already exists. Please choose a different one.",
-                        variant: "destructive"
-                    });
-                return;
-            }
+      if (selectError) {
+        setAlertOpen(true);
+        setAlertTitle('Error');
+        setAlertDescription("Nickname already exists. Please choose a different one.");
+        toast({
+          title: "Error",
+          description: "Nickname already exists. Please choose a different one.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-            if (existingUser) {
-                setAlertOpen(true);
-                setAlertTitle('Error');
-                setAlertDescription("Nickname already exists. Please choose a different one.");
-                toast({
-                    title: "Error",
-                    description: "Nickname already exists. Please choose a different one.",
-                    variant: "destructive"
-                });
-                return;
-            }
-
-
-            const {error: insertError} = await supabase
-                .from('users')
-                .insert({nickname, password})
-                .select();
-
-            if (insertError) {
-                setAlertOpen(true);
-                setAlertTitle('Error');
-                setAlertDescription(insertError.message);
-
-                  toast({
-                        title: "Error",
-                        description: insertError.message,
-                         variant: "destructive"
-                    });
-                return;
-            }
-
-          toast({
-                        title: "Success",
-                        description: "User created successfully!"
-                    });
+      if (existingUser) {
+        setAlertOpen(true);
+        setAlertTitle('Error');
+        setAlertDescription("Nickname already exists. Please choose a different one.");
+        toast({
+          title: "Error",
+          description: "Nickname already exists. Please choose a different one.",
+          variant: "destructive"
+        });
+        return;
+      }
 
 
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({ nickname, password })
+        .select();
 
-        } catch (error: any) {
-               setAlertOpen(true);
-                setAlertTitle('Error');
-                setAlertDescription(error.error_description || error.message);
-              toast({
-                        title: "Error",
-                        description: error.error_description || error.message,
-                         variant: "destructive"
-                    });
-        } finally {
-            setLoading(false);
-        }
+      if (insertError) {
+        setAlertOpen(true);
+        setAlertTitle('Error');
+        setAlertDescription(insertError.message);
+
+        toast({
+          title: "Error",
+          description: insertError.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "User created successfully!"
+      });
+
+        setAlertOpen(true);
+        setAlertTitle('Success');
+        setAlertDescription('User created successfully!');
+
+    } catch (error: any) {
+      setAlertOpen(true);
+      setAlertTitle('Error');
+      setAlertDescription(error.error_description || error.message);
+      toast({
+        title: "Error",
+        description: error.error_description || error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
+  }
 
   async function handleSignIn() {
-   try {
+    try {
       setLoading(true)
       // Find the user by nickname
       const { data: user, error: userError } = await supabase
@@ -195,67 +198,66 @@ export default function PlayerPage() {
         .maybeSingle();
 
       if (userError) {
-                setAlertOpen(true);
-                setAlertTitle('Error');
-                setAlertDescription(userError.message);
+        setAlertOpen(true);
+        setAlertTitle('Error');
+        setAlertDescription(userError.message);
 
-                toast({
-                    title: "Error",
-                    description: userError.message,
-                    variant: "destructive"
-                });
-          return;
+        toast({
+          title: "Error",
+          description: userError.message,
+          variant: "destructive"
+        });
+        return;
       }
 
       if (!user) {
-          setAlertOpen(true);
-          setAlertTitle('Error');
-          setAlertDescription('Invalid credentials');
+        setAlertOpen(true);
+        setAlertTitle('Error');
+        setAlertDescription('Invalid credentials');
 
-          toast({
-              title: "Error",
-              description: "User not found",
-              variant: "destructive"
-          });
+        toast({
+          title: "Error",
+          description: "User not found",
+          variant: "destructive"
+        });
         return;
       }
 
 
-      if (password !== user.password){
-          setAlertOpen(true);
-          setAlertTitle('Error');
-          setAlertDescription('Invalid credentials');
-          toast({
-              title: "Error",
-              description: "Invalid credentials",
-              variant: "destructive"
-          });
-          return;
+      if (password !== user.password) {
+        setAlertOpen(true);
+        setAlertTitle('Error');
+        setAlertDescription('Invalid credentials');
+        toast({
+          title: "Error",
+          description: "Invalid credentials",
+          variant: "destructive"
+        });
+        return;
       }
 
-        const userSession: UserSession = {
-            nickname: user.nickname,
-            id: user.id,
-        };
+      const userSession: UserSession = {
+        nickname: user.nickname,
+        id: user.id,
+      };
 
       setSession(userSession);
       await saveSession(userSession);
 
-       toast({
-                title: "Success",
-                description: "Signed in successfully!"
-            });
+      toast({
+        title: "Success",
+        description: "Signed in successfully!"
+      });
 
-
-       setAlertOpen(true);
-       setAlertTitle('Success');
-       setAlertDescription('Signed in successfully!');
+      setAlertOpen(true);
+      setAlertTitle('Success');
+      setAlertDescription('Signed in successfully!');
     } catch (error: any) {
-        toast({
-                        title: "Error",
-                        description: error.message,
-                         variant: "destructive"
-                    });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
 
     } finally {
       setLoading(false)
@@ -265,34 +267,105 @@ export default function PlayerPage() {
   async function handleSignOut() {
     try {
       setLoading(true)
-        await clearSession();
-      setSession({nickname: null, id: null});
-          toast({
-              title: "Success",
-              description: "Signed out successfully!"
-          });
+      await clearSession();
+      setSession({ nickname: null, id: null });
+      toast({
+        title: "Success",
+        description: "Signed out successfully!"
+      });
     } catch (error: any) {
-         toast({
-                        title: "Error",
-                        description: error.error_description || error.message,
-                         variant: "destructive"
-                    });
+      toast({
+        title: "Error",
+        description: error.error_description || error.message,
+        variant: "destructive"
+      });
     } finally {
       setLoading(false)
     }
   }
 
 
-  // Dummy player data for demonstration
   const getPlayersInSession = (sessionId: string) => {
-    // Replace this with actual logic to fetch player data from your data source
-    const players = [
-      { id: '1', nickname: 'Player1' },
-      { id: '2', nickname: 'Player2' },
-      { id: '3', nickname: 'Player3' },
-    ];
-    return players;
+    const session = gameSessions.find(session => session.id === sessionId);
+    return session?.players || [];
   };
+
+  const joinGame = async (sessionId: string) => {
+      if (!session.id) {
+          toast({
+              title: "Error",
+              description: "You must sign in to join a game.",
+              variant: "destructive"
+          });
+          return;
+      }
+
+      try {
+          const {data: gameSession, error: gameSessionError} = await supabase
+              .from('game_sessions')
+              .select('*')
+              .eq('id', sessionId)
+              .single();
+
+          if (gameSessionError) {
+              console.error('Error fetching game session:', gameSessionError);
+              toast({
+                  title: "Error",
+                  description: "Failed to join game.",
+                  variant: "destructive"
+              });
+              return;
+          }
+
+          // Ensure the game session exists
+          if (!gameSession) {
+              toast({
+                  title: "Error",
+                  description: "Game session not found.",
+                  variant: "destructive"
+              });
+              return;
+          }
+
+          const {data: updatedSession, error: updateError} = await supabase
+              .from('game_sessions')
+              .update({
+                  players: [...(gameSession.players || []), session.id],
+              })
+              .eq('id', sessionId)
+              .select()
+              .single();
+
+
+          if (updateError) {
+              console.error('Error joining game:', updateError);
+              toast({
+                  title: "Error",
+                  description: "Failed to join game.",
+                  variant: "destructive"
+              });
+              return;
+          }
+
+          await fetchGameSessions();
+
+
+          toast({
+              title: "Success",
+              description: "Successfully joined the game!",
+          });
+
+      } catch (error: any) {
+          console.error('Unexpected error joining game:', error);
+          toast({
+              title: "Error",
+              description: "Unexpected error joining game.",
+              variant: "destructive"
+          });
+      }
+  };
+
+
 
   return (
     <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
@@ -309,23 +382,23 @@ export default function PlayerPage() {
         </Button>
       </div>
 
-        <div className="absolute bottom-4 right-4">
-            {session.nickname && (
-                <Button
-                    variant="outline"
-                    className="h-10 w-10 p-0 text-white rounded-full"
-                    onClick={() => {
-                        handleSignOut();
-                    }}
-                    disabled={loading}
-                >
-                    <LogOut
-                        className="h-6 w-6"
-                        aria-hidden="true"
-                    />
-                </Button>
-            )}
-        </div>
+      <div className="absolute bottom-4 right-4">
+        {session.nickname && (
+          <Button
+            variant="outline"
+            className="h-10 w-10 p-0 text-white rounded-full"
+            onClick={() => {
+              handleSignOut();
+            }}
+            disabled={loading}
+          >
+            <LogOut
+              className="h-6 w-6"
+              aria-hidden="true"
+            />
+          </Button>
+        )}
+      </div>
 
       <h1 className="text-3xl font-bold mb-4">Player Page</h1>
 
@@ -355,11 +428,11 @@ export default function PlayerPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleSignIn();
-                                            }
-                                        }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSignIn();
+                      }
+                    }}
                   />
                 </div>
               </div>
@@ -389,27 +462,27 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader className="flex justify-between">
               <CardTitle>Welcome!</CardTitle>
-              </CardHeader>
+            </CardHeader>
             <CardDescription>
-                Hello, {session?.nickname}! GL HF!
+              Hello, {session?.nickname}! GL HF!
             </CardDescription>
           </Card>
         )}
       </div>
 
-         <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
-             <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{alertTitle}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {alertDescription}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogAction onClick={() => setAlertOpen(false)}>OK</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertTitle}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {alertDescription}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
 
 
@@ -433,7 +506,7 @@ export default function PlayerPage() {
                   <TableCell>
                     <Popover>
                       <PopoverTrigger>
-                        {`0/${session.maxPlayers}`}
+                        {`${getPlayersInSession(session.id).length}/${session.maxPlayers}`}
                       </PopoverTrigger>
                       <PopoverContent className="w-80">
                         <Card>
@@ -442,13 +515,13 @@ export default function PlayerPage() {
                           </CardHeader>
                           <CardContent>
                             {getPlayersInSession(session.id).map((player) => (
-                              <div key={player.id} className="flex items-center space-x-4 py-2">
+                              <div key={player} className="flex items-center space-x-4 py-2">
                                 <Avatar>
                                   <AvatarImage src="https://github.com/shadcn.png" />
-                                  <AvatarFallback>{player.nickname.substring(0, 2)}</AvatarFallback>
+                                  <AvatarFallback>{player.substring(0, 2)}</AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="text-sm font-medium leading-none">{player.nickname}</p>
+                                  <p className="text-sm font-medium leading-none">{player}</p>
                                 </div>
                               </div>
                             ))}
@@ -459,7 +532,7 @@ export default function PlayerPage() {
                   </TableCell>
                   <TableCell>{session.timePerQuestionInSec === 0 ? '∞' : `${session.timePerQuestionInSec} seconds`}</TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm">Join Game</Button>
+                    <Button size="sm" onClick={() => joinGame(session.id)}>Join Game</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -470,5 +543,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
