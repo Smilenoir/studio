@@ -8,6 +8,7 @@ import {GameSessions} from "@/components/game-sessions";
 import {Button} from "@/components/ui/button";
 import {ArrowLeft} from "lucide-react";
 import {useRouter} from "next/navigation";
+import {Users} from "@/components/users";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export default function AdminPage() {
           <TabsTrigger value="sessions">Game Sessions</TabsTrigger>
           <TabsTrigger value="questions">Question Editor</TabsTrigger>
           <TabsTrigger value="groups">Group Editor</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="mt-4">
           <Dashboard />
@@ -45,6 +47,9 @@ export default function AdminPage() {
         <TabsContent value="groups" className="mt-4">
           <GroupEditor />
         </TabsContent>
+          <TabsContent value="users" className="mt-4">
+            <Users />
+          </TabsContent>
       </Tabs>
     </div>
   );
