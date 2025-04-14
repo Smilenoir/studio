@@ -35,6 +35,7 @@ interface GameSession {
   timePerQuestionInSec: number;
   createdAt: string;
   status: 'waiting' | 'active' | 'finished';
+  players: string[];
 }
 
 interface Group {
@@ -140,6 +141,45 @@ export const Dashboard = () => {
         return availableGroups.find(group => group.id === groupId)?.name || 'Unknown Group';
     };
 
+  const startGameSession = async (sessionId: string) => {
+      try {
+          const {error} = await supabase
+              .from('game_sessions')
+              .update({status: 'active'})
+              .eq('id', sessionId)
+              .select();
+
+          if (error) {
+              console.error('Error starting game session:', JSON.stringify(error));
+              toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: "Failed to start game session."
+              });
+              return;
+          }
+
+          // Optimistically update the UI
+          setActiveSessions(prevSessions =>
+              prevSessions.map(session =>
+                  session.id === sessionId ? {...session, status: 'active'} : session
+              )
+          );
+
+          toast({
+              title: "Success",
+              description: "Game session started successfully."
+          });
+      } catch (error) {
+          console.error('Unexpected error starting game session:', JSON.stringify(error));
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Unexpected error starting game session."
+          });
+      }
+  };
+
   return (
     <div className="container mx-auto max-w-4xl">
       <h2 className="text-2xl font-semibold mb-4">Active Sessions</h2>
@@ -173,6 +213,7 @@ export const Dashboard = () => {
               <TableHead>Status</TableHead>
               <TableHead>Question Group</TableHead>
               <TableHead>Created At</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -184,10 +225,15 @@ export const Dashboard = () => {
               activeSessions.map(session => (
                 <TableRow key={session.id}>
                   <TableCell>{session.sessionName}</TableCell>
-                  <TableCell>{session.maxPlayers !== undefined ? `0/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
+                  <TableCell>{session.maxPlayers !== undefined ? `${session.players ? session.players.length : 0}/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
                   <TableCell>{session.status}</TableCell>
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                   <TableCell>{format(new Date(session.createdAt), 'yyyy-MM-dd HH:mm')}</TableCell>
+                    <TableCell className="text-right">
+                        <Button size="sm" onClick={() => startGameSession(session.id)} disabled={session.status === 'active'}>
+                            {session.status === 'active' ? "Active" : "Start"}
+                        </Button>
+                    </TableCell>
                 </TableRow>
               ))
             )}
