@@ -1,7 +1,8 @@
 'use client';
 
+import * as bcrypt from 'bcryptjs';
 import { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -13,12 +14,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/lib/supabaseClient";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useToast } from "@/hooks/use-toast";
+} from '@/components/ui/table';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/lib/supabaseClient';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
 import { Label } from "@/components/ui/label";
 
 interface GameSession {
@@ -36,7 +38,6 @@ export default function PlayerPage() {
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
   const [session, setSession] = useState(null);
 
@@ -94,46 +95,46 @@ export default function PlayerPage() {
       }
 
       if (existingUser) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Nickname already exists. Please choose a different one.",
-        });
+        alert("Nickname already exists. Please choose a different one.");
+
+       
+        // <AlertDialog>
+        //   <AlertDialogTrigger asChild>
+        //   </AlertDialogTrigger>
+        //   <AlertDialogContent>
+        //     <AlertDialogHeader>
+        //       <AlertDialogTitle>Error</AlertDialogTitle>
+        //       <AlertDialogDescription>Nickname already exists. Please choose a different one.</AlertDialogDescription>
+        //     </AlertDialogHeader>
+        //   </AlertDialogContent>
         return;
       }
 
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      const { data, error } = await supabase.auth.signUp({
-        email: nickname + '@example.com', // Dummy email
-        password: password,
-        options: {
-          data: {
-            nickname: nickname,
-          },
-        },
-      });
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({ nickname, password: hashedPassword });
 
-      if (error) throw error;
+      if (insertError) {
+        throw insertError;
+      }
 
-      // Automatically sign in after successful signup
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: nickname + '@example.com',
-        password: password,
-      });
+      alert(
+        'Account created successfully. You can now sign in.'
+      );
 
-      if (signInError) throw signInError;
-      loadSession();
-
-      toast({
-        title: "Success",
-        description: "Account created successfully.",
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.error_description || error.message,
-      });
+    } catch (error) {
+      alert(error.error_description || error.message);
+       // <AlertDialog>
+      //   <AlertDialogTrigger asChild>
+      //   </AlertDialogTrigger>
+      //   <AlertDialogContent>
+      //     <AlertDialogHeader>
+      //       <AlertDialogTitle>Error</AlertDialogTitle>
+      //       <AlertDialogDescription>{error.error_description || error.message}</AlertDialogDescription>
+      //     </AlertDialogHeader>
     } finally {
       setLoading(false);
     }
@@ -142,18 +143,40 @@ export default function PlayerPage() {
   async function handleSignIn() {
     try {
       setLoading(true)
-      const { error } = await supabase.auth.signInWithPassword({
-        email: nickname + '@example.com',
-        password,
-      })
-      if (error) throw error
-      loadSession();
+      // Find the user by nickname
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('nickname', nickname)
+        .maybeSingle();
+
+      if (userError) throw userError;
+
+      if (!user) {
+        alert("User not found");
+        return;
+      }
+
+      // Compare the entered password with the hashed password
+      const isPasswordCorrect = await bcrypt.compare(password, user.password);
+      if (!isPasswordCorrect) {
+        alert("Invalid credentials");
+        return;
+      }
+
+      alert("Signed in successfully!");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.error_description || error.message,
-      })
+        alert(error.error_description || error.message);
+
+      //   <AlertDialog>
+      //   <AlertDialogTrigger asChild>
+      //   </AlertDialogTrigger>
+      //   <AlertDialogContent>
+      //     <AlertDialogHeader>
+      //       <AlertDialogTitle>Error</AlertDialogTitle>
+      //       <AlertDialogDescription>{error.error_description || error.message}</AlertDialogDescription>
+      //     </AlertDialogHeader>
+      //   </AlertDialogContent>
     } finally {
       setLoading(false)
     }
@@ -166,11 +189,17 @@ export default function PlayerPage() {
       if (error) throw error
       setSession(null);
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.error_description || error.message,
-      })
+         alert(error.error_description || error.message);
+
+      //   <AlertDialog>
+      //   <AlertDialogTrigger asChild>
+      //   </AlertDialogTrigger>
+      //   <AlertDialogContent>
+      //     <AlertDialogHeader>
+      //       <AlertDialogTitle>Error</AlertDialogTitle>
+      //       <AlertDialogDescription>{error.error_description || error.message}</AlertDialogDescription>
+      //     </AlertDialogHeader>
+      //   </AlertDialogContent>
     } finally {
       setLoading(false)
     }
