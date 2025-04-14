@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -103,8 +104,6 @@ export default function PlayerPage() {
         return;
       }
 
-      // const saltRounds = 10;
-      // const hashedPassword = await bcrypt.hash(password, saltRounds);
 
       const { error: insertError } = await supabase
         .from('users')
@@ -120,7 +119,7 @@ export default function PlayerPage() {
       setAlertOpen(true);
 
       // Automatically sign in the user after successful registration
-      await handleSignIn();
+      //await handleSignIn();
 
 
     } catch (error) {
