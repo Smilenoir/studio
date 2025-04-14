@@ -23,6 +23,7 @@ import {
 interface Group {
   id: string;
   name: string;
+  questionCount: number;
 }
 
 export const GroupEditor = () => {
@@ -40,7 +41,13 @@ export const GroupEditor = () => {
 
   const fetchGroups = async () => {
     try {
-      const {data, error} = await supabase.from('groups').select('*');
+      const { data, error } = await supabase
+        .from('groups')
+        .select(`
+          id,
+          name,
+          questions (count)
+        `);
       if (error) {
         console.error('Error fetching groups:', JSON.stringify(error));
         toast({
@@ -50,7 +57,13 @@ export const GroupEditor = () => {
         })
         return;
       }
-      setGroups(data || []);
+
+      const groupsWithCount = data?.map(group => ({
+        id: group.id,
+        name: group.name,
+        questionCount: group.questions ? group.questions.length : 0,
+      })) || [];
+      setGroups(groupsWithCount as Group[]);
     } catch (error) {
       console.error('Unexpected error fetching groups:', JSON.stringify(error));
       toast({
@@ -105,7 +118,7 @@ export const GroupEditor = () => {
         return;
       }
 
-      setGroups([...groups, {id: newId, name: newGroupName}]);
+      setGroups([...groups, {id: newId, name: newGroupName, questionCount: 0}]);
       setNewGroupName('');
       toast({
         title: "Success",
@@ -169,7 +182,7 @@ export const GroupEditor = () => {
         }
 
         const updatedGroups = groups.map(group =>
-          group.id === editingGroupId ? {id: editingGroupId, name: newGroupName} : group
+          group.id === editingGroupId ? {id: editingGroupId, name: newGroupName, questionCount: group.questionCount} : group
         );
         setGroups(updatedGroups);
         setEditingGroupId(null);
@@ -273,7 +286,7 @@ export const GroupEditor = () => {
               {groups.map(group => (
                 <Card key={group.id}>
                   <CardHeader>
-                    <CardTitle>{group.name}</CardTitle>
+                    <CardTitle>{group.name} ({group.questionCount} Questions)</CardTitle>
                     <CardDescription>ID: {group.id}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex gap-2">
