@@ -74,11 +74,21 @@ export const GameSessions = () => {
         .select('*');
       if (error) {
         console.error('Error fetching groups:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch groups."
+        })
         return;
       }
       setAvailableGroups(data || []);
     } catch (error) {
       console.error('Unexpected error fetching groups:', JSON.stringify(error));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error fetching groups."
+      })
     }
   };
 
@@ -233,7 +243,7 @@ export const GameSessions = () => {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="timePerQuestion">Time per Question (seconds) ({newSession.timePerQuestion})</Label>
+            <Label htmlFor="timePerQuestion">Time per Question (seconds) ({newSession.timePerQuestion === 0 ? '∞' : newSession.timePerQuestion})</Label>
             <Slider
                 defaultValue={[0]}
                 max={60}
@@ -293,3 +303,4 @@ export const GameSessions = () => {
     </div>
   );
 };
+
