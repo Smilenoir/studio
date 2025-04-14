@@ -40,6 +40,9 @@ export default function PlayerPage() {
   const [loading, setLoading] = useState(false);
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
   const [session, setSession] = useState(null);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertDescription, setAlertDescription] = useState('');
 
 
   useEffect(() => {
@@ -95,18 +98,9 @@ export default function PlayerPage() {
       }
 
       if (existingUser) {
-        alert("Nickname already exists. Please choose a different one.");
-
-       
-        // <AlertDialog>
-        //   <AlertDialogTrigger asChild>
-        //   </AlertDialogTrigger>
-        //   <AlertDialogContent>
-        //     <AlertDialogHeader>
-        //       <AlertDialogTitle>Error</AlertDialogTitle>
-        //       <AlertDialogDescription>Nickname already exists. Please choose a different one.</AlertDialogDescription>
-        //     </AlertDialogHeader>
-        //   </AlertDialogContent>
+        setAlertTitle("Error");
+        setAlertDescription("Nickname already exists. Please choose a different one.");
+        setAlertOpen(true);
         return;
       }
 
@@ -121,20 +115,15 @@ export default function PlayerPage() {
         throw insertError;
       }
 
-      alert(
-        'Account created successfully. You can now sign in.'
-      );
+      setAlertTitle("Success");
+      setAlertDescription('Account created successfully. You can now sign in.');
+      setAlertOpen(true);
+
 
     } catch (error) {
-      alert(error.error_description || error.message);
-       // <AlertDialog>
-      //   <AlertDialogTrigger asChild>
-      //   </AlertDialogTrigger>
-      //   <AlertDialogContent>
-      //     <AlertDialogHeader>
-      //       <AlertDialogTitle>Error</AlertDialogTitle>
-      //       <AlertDialogDescription>{error.error_description || error.message}</AlertDialogDescription>
-      //     </AlertDialogHeader>
+       setAlertTitle("Error");
+       setAlertDescription(error.error_description || error.message);
+       setAlertOpen(true);
     } finally {
       setLoading(false);
     }
@@ -153,30 +142,30 @@ export default function PlayerPage() {
       if (userError) throw userError;
 
       if (!user) {
-        alert("User not found");
+        setAlertTitle("Error");
+        setAlertDescription("User not found");
+        setAlertOpen(true);
         return;
       }
 
       // Compare the entered password with the hashed password
       const isPasswordCorrect = await bcrypt.compare(password, user.password);
       if (!isPasswordCorrect) {
-        alert("Invalid credentials");
+        setAlertTitle("Error");
+        setAlertDescription("Invalid credentials");
+        setAlertOpen(true);
         return;
       }
 
-      alert("Signed in successfully!");
-    } catch (error: any) {
-        alert(error.error_description || error.message);
+      setAlertTitle("Success");
+      setAlertDescription("Signed in successfully!");
+      setAlertOpen(true);
 
-      //   <AlertDialog>
-      //   <AlertDialogTrigger asChild>
-      //   </AlertDialogTrigger>
-      //   <AlertDialogContent>
-      //     <AlertDialogHeader>
-      //       <AlertDialogTitle>Error</AlertDialogTitle>
-      //       <AlertDialogDescription>{error.error_description || error.message}</AlertDialogDescription>
-      //     </AlertDialogHeader>
-      //   </AlertDialogContent>
+    } catch (error: any) {
+        setAlertTitle("Error");
+        setAlertDescription(error.error_description || error.message);
+        setAlertOpen(true);
+
     } finally {
       setLoading(false)
     }
@@ -189,17 +178,9 @@ export default function PlayerPage() {
       if (error) throw error
       setSession(null);
     } catch (error: any) {
-         alert(error.error_description || error.message);
-
-      //   <AlertDialog>
-      //   <AlertDialogTrigger asChild>
-      //   </AlertDialogTrigger>
-      //   <AlertDialogContent>
-      //     <AlertDialogHeader>
-      //       <AlertDialogTitle>Error</AlertDialogTitle>
-      //       <AlertDialogDescription>{error.error_description || error.message}</AlertDialogDescription>
-      //     </AlertDialogHeader>
-      //   </AlertDialogContent>
+        setAlertTitle("Error");
+        setAlertDescription(error.error_description || error.message);
+        setAlertOpen(true);
     } finally {
       setLoading(false)
     }
@@ -304,6 +285,21 @@ export default function PlayerPage() {
           </Card>
         )}
       </div>
+
+         <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{alertTitle}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {alertDescription}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogAction onClick={() => setAlertOpen(false)}>OK</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
 
 
       {/* Game Session List */}
