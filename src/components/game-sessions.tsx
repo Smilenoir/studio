@@ -172,6 +172,10 @@ export const GameSessions = () => {
               title: "Success",
               description: "Session added successfully."
           });
+
+          // TODO: Store the session ID in Redis
+          // await redis.set(newId, JSON.stringify(sessionToAdd));
+
       } catch (error) {
           console.error('Unexpected error adding session:', JSON.stringify(error));
           toast({
