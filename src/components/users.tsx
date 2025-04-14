@@ -29,6 +29,7 @@ import {format} from 'date-fns';
 interface User {
   id: string;
   nickname: string;
+  password?: string;
   created_at: string;
 }
 
@@ -83,7 +84,7 @@ export const Users = () => {
             variant: "destructive",
             title: "Error",
             description: "Failed to delete user."
-          })
+          });
           return;
         }
 
@@ -92,14 +93,14 @@ export const Users = () => {
         toast({
           title: "Success",
           description: "User deleted successfully."
-        })
+        });
       } catch (error) {
         console.error('Unexpected error deleting user:', JSON.stringify(error));
         toast({
           variant: "destructive",
           title: "Error",
           description: "Unexpected error deleting user."
-        })
+        });
       } finally {
         setOpen(false);
         setDeletingUserId(null);
@@ -117,6 +118,7 @@ export const Users = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[200px]">Nickname</TableHead>
+                <TableHead className="w-[200px]">Password</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -130,6 +132,7 @@ export const Users = () => {
               users.map(user => (
                 <TableRow key={user.id}>
                   <TableCell>{user.nickname}</TableCell>
+                    <TableCell>{user.password}</TableCell>
                   <TableCell>{format(new Date(user.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
                   <TableCell className="text-right">
                     <AlertDialog>
@@ -145,7 +148,9 @@ export const Users = () => {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteUser()}>Continue</AlertDialogAction>
+                          <AlertDialogAction onClick={() => {
+                            deleteUser();
+                          }}>Continue</AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
@@ -159,3 +164,4 @@ export const Users = () => {
     </div>
   );
 };
+
