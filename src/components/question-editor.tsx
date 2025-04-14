@@ -13,11 +13,12 @@ import * as React from "react";
 
 interface Question {
   id: string;
-  group: string;
-  type: 'multipleChoice' | 'numerical';
-  text: string;
-  options: string[];
-  correctAnswer: string;
+  groupId: string;
+  questionType: 'multipleChoice' | 'numerical';
+  questionText: string;
+  answers: string[];
+  correctAnswer: string | null;
+  correctNumber: number | null;
 }
 
 interface Group {
@@ -31,12 +32,13 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion: React.Dispatch<React.SetStateAction<Omit<Question, 'id'>>>] = useState<Omit<Question, 'id'>>({
-    group: '',
-    type: '' as 'multipleChoice' | 'numerical',
-    text: '',
-    options: ['', '', '', ''],
-    correctAnswer: '',
+  const [newQuestion, setNewQuestion] = useState<Omit<Question, 'id'>>({
+    groupId: '',
+    questionType: '' as 'multipleChoice' | 'numerical',
+    questionText: '',
+    answers: ['', '', '', ''],
+    correctAnswer: null,
+    correctNumber: null,
   });
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const {toast} = useToast();
@@ -99,31 +101,39 @@ export const QuestionEditor = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const {name, value} = e.target;
-    if (name.startsWith('option')) {
-      const index = parseInt(name.replace('option', ''), 10);
-      const newOptions = [...newQuestion.options];
-      newOptions[index] = value;
-      setNewQuestion({...newQuestion, options: newOptions});
-    } else {
-      // Handle other input changes
+    if (name.startsWith('answer')) {
+      const index = parseInt(name.replace('answer', ''), 10);
+      const newAnswers = [...newQuestion.answers];
+      newAnswers[index] = value;
+      setNewQuestion({...newQuestion, answers: newAnswers});
+    } else if (name === 'correctNumber') {
+      setNewQuestion({...newQuestion, correctNumber: value === '' ? null : parseInt(value, 10)});
+    }
+    else {
       setNewQuestion({...newQuestion, [name]: value});
     }
   };
 
   const handleSelectChange = (value: string, name: string) => {
-    setNewQuestion({...newQuestion, [name]: value as any});
-    if (name === 'group') {
-      setGroupError(null); // Clear group error when a group is selected
+    setNewQuestion(prevQuestion => ({...prevQuestion, [name]: value }));
+    if (name === 'groupId') {
+      setGroupError(null);
     }
-    if (name === 'type') {
-      setTypeError(null); // Clear type error when a type is selected
+    if (name === 'questionType') {
+      setTypeError(null);
+      setNewQuestion(prevQuestion => ({
+        ...prevQuestion,
+        correctAnswer: null,
+        correctNumber: null,
+        answers: ['', '', '', '']
+      }));
     }
   };
 
   const validateQuestion = (): boolean => {
     let isValid = true;
 
-    if (!newQuestion.group) {
+    if (!newQuestion.groupId) {
       setGroupError('Please select a group.');
       toast({
         variant: "destructive",
@@ -133,7 +143,7 @@ export const QuestionEditor = () => {
       isValid = false;
     }
 
-    if (!newQuestion.type) {
+    if (!newQuestion.questionType) {
       setTypeError('Please select a type.');
       toast({
         variant: "destructive",
@@ -152,16 +162,27 @@ export const QuestionEditor = () => {
     }
 
     const newId = generateId();
-    const questionToAdd: Question = {id: newId, ...newQuestion};
+    const questionToAdd: Question = {
+      id: newId,
+      ...newQuestion,
+    };
 
     try {
-      const {error} = await supabase
+      const { error } = await supabase
         .from('questions')
-        .insert([questionToAdd])
+        .insert([{
+          id: questionToAdd.id,
+          questionText: questionToAdd.questionText,
+          groupId: questionToAdd.groupId,
+          questionType: questionToAdd.questionType,
+          answers: questionToAdd.answers,
+          correctAnswer: questionToAdd.correctAnswer,
+          correctNumber: questionToAdd.correctNumber,
+        }])
         .select();
 
       if (error) {
-        console.error('Error adding question:', JSON.stringify(error));
+        console.error('Error adding question:', error);
         toast({
           variant: "destructive",
           title: "Error",
@@ -171,7 +192,14 @@ export const QuestionEditor = () => {
       }
 
       setQuestions([...questions, questionToAdd]);
-      setNewQuestion({group: '', type: '' as 'multipleChoice' | 'numerical', text: '', options: ['', '', '', ''], correctAnswer: ''});
+      setNewQuestion({
+        groupId: '',
+        questionType: '' as 'multipleChoice' | 'numerical',
+        questionText: '',
+        answers: ['', '', '', ''],
+        correctAnswer: null,
+        correctNumber: null,
+      });
       toast({
         title: "Success",
         description: "Question added successfully."
@@ -197,9 +225,16 @@ export const QuestionEditor = () => {
   const updateQuestion = async () => {
     if (editingQuestionId) {
       try {
-        const {error} = await supabase
+        const { error } = await supabase
           .from('questions')
-          .update({...newQuestion})
+          .update({
+            questionText: newQuestion.questionText,
+            groupId: newQuestion.groupId,
+            questionType: newQuestion.questionType,
+            answers: newQuestion.answers,
+            correctAnswer: newQuestion.correctAnswer,
+            correctNumber: newQuestion.correctNumber,
+          })
           .eq('id', editingQuestionId)
           .select();
 
@@ -208,7 +243,7 @@ export const QuestionEditor = () => {
           toast({
             variant: "destructive",
             title: "Error",
-            description: "Failed to add question."
+            description: "Failed to update question."
           });
           return;
         }
@@ -218,7 +253,14 @@ export const QuestionEditor = () => {
         );
         setQuestions(updatedQuestions);
         setEditingQuestionId(null);
-        setNewQuestion({group: '', type: '' as 'multipleChoice' | 'numerical', text: '', options: ['', '', '', ''], correctAnswer: ''});
+        setNewQuestion({
+          groupId: '',
+          questionType: '' as 'multipleChoice' | 'numerical',
+          questionText: '',
+          answers: ['', '', '', ''],
+          correctAnswer: null,
+          correctNumber: null,
+        });
         toast({
           title: "Success",
           description: "Question updated successfully."
@@ -228,7 +270,7 @@ export const QuestionEditor = () => {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to add question."
+          description: "Failed to update question."
         });
       }
     }
@@ -264,7 +306,7 @@ export const QuestionEditor = () => {
     }
   };
 
-  const selectedGroupName = groups.length === 1 ? groups[0]?.name : groups.find(group => group.id === newQuestion.group)?.name;
+  const selectedGroupName = groups.find(group => group.id === newQuestion.groupId)?.name || '';
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
@@ -277,16 +319,14 @@ export const QuestionEditor = () => {
         <CardContent className="grid gap-4">
 
           <div className="grid gap-2">
-            <Label htmlFor="group">Group</Label>
-            <Select onValueChange={(value) => handleSelectChange(value, 'group')}>
-              <SelectTrigger id="group">
+            <Label htmlFor="groupId">Group</Label>
+            <Select onValueChange={(value) => handleSelectChange(value, 'groupId')}>
+              <SelectTrigger id="groupId">
                 <SelectValue placeholder="Select a group">{selectedGroupName}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {groups.map(group => (
-                  group.id ? (
-                    <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
-                  ) : null
+                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -294,10 +334,10 @@ export const QuestionEditor = () => {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="type">Type</Label>
-            <Select onValueChange={(value) => handleSelectChange(value, 'type')}>
-              <SelectTrigger id="type">
-                <SelectValue placeholder="Select a type">{newQuestion.type === 'multipleChoice' ? 'Multiple Choice' : newQuestion.type === 'numerical' ? 'Numerical' : ''}</SelectValue>
+            <Label htmlFor="questionType">Type</Label>
+            <Select onValueChange={(value) => handleSelectChange(value, 'questionType')}>
+              <SelectTrigger id="questionType">
+                <SelectValue placeholder="Select a type">{newQuestion.questionType === 'multipleChoice' ? 'Multiple Choice' : newQuestion.questionType === 'numerical' ? 'Numerical' : ''}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="multipleChoice">Multiple Choice</SelectItem>
@@ -308,28 +348,28 @@ export const QuestionEditor = () => {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="text">Question Text</Label>
+            <Label htmlFor="questionText">Question Text</Label>
             <Textarea
-              id="text"
-              name="text"
-              value={newQuestion.text}
+              id="questionText"
+              name="questionText"
+              value={newQuestion.questionText}
               onChange={handleInputChange}
               placeholder="Enter question text"
             />
           </div>
 
-          {newQuestion.type === 'multipleChoice' && (
+          {newQuestion.questionType === 'multipleChoice' && (
             <>
               <div className="grid gap-2">
-                <Label>Options</Label>
-                {newQuestion.options.map((option, index) => (
+                <Label>Answers</Label>
+                {newQuestion.answers.map((answer, index) => (
                   <Input
                     key={index}
                     type="text"
-                    name={`option${index}`}
-                    value={option}
+                    name={`answer${index}`}
+                    value={answer}
                     onChange={handleInputChange}
-                    placeholder={`Option ${index + 1}`}
+                    placeholder={`Answer ${index + 1}`}
                   />
                 ))}
               </div>
@@ -338,28 +378,28 @@ export const QuestionEditor = () => {
                 <Label htmlFor="correctAnswer">Correct Answer</Label>
                 <Select onValueChange={(value) => handleSelectChange(value, 'correctAnswer')}>
                   <SelectTrigger id="correctAnswer">
-                    <SelectValue placeholder="Select correct answer">{newQuestion.correctAnswer}</SelectValue>
+                    <SelectValue placeholder="Select correct answer">{newQuestion.correctAnswer || "Select answer"}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {newQuestion.options
-                      .filter(option => option !== '') // Filter out empty strings
-                      .map((option, index) => (
-                        <SelectItem key={index} value={option}>{option}</SelectItem>
-                      ))}
+                    {newQuestion.answers.map((answer, index) => (
+                      answer ? (
+                        <SelectItem key={index} value={answer}>{answer}</SelectItem>
+                      ) : null
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </>
           )}
 
-          {newQuestion.type === 'numerical' && (
+          {newQuestion.questionType === 'numerical' && (
             <div className="grid gap-2">
-              <Label htmlFor="correctAnswer">Correct Answer</Label>
+              <Label htmlFor="correctNumber">Correct Answer</Label>
               <Input
                 type="number"
-                id="correctAnswer"
-                name="correctAnswer"
-                value={newQuestion.correctAnswer}
+                id="correctNumber"
+                name="correctNumber"
+                value={newQuestion.correctNumber !== null ? newQuestion.correctNumber.toString() : ''}
                 onChange={handleInputChange}
                 placeholder="Enter the correct numerical answer"
               />
@@ -389,8 +429,8 @@ export const QuestionEditor = () => {
               {questions.map(question => (
                 <Card key={question.id}>
                   <CardHeader>
-                    <CardTitle>{question.text}</CardTitle>
-                    <CardDescription>Group: {question.group}, Type: {question.type}</CardDescription>
+                    <CardTitle>{question.questionText}</CardTitle>
+                    <CardDescription>Group: {question.groupId}, Type: {question.questionType}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <Button size="sm" onClick={() => startEditing(question.id)}>Edit</Button>
