@@ -52,6 +52,7 @@ export default function PlayerPage() {
   const [alertTitle, setAlertTitle] = useState<string | null>(null);
   const [alertDescription, setAlertDescription] = useState<string | null>(null);
   const { toast } = useToast();
+  const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -89,11 +90,21 @@ export default function PlayerPage() {
 
       if (error) {
         console.error('Error fetching game sessions:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch game sessions.",
+          variant: "destructive"
+        });
         return;
       }
       setGameSessions(data || []);
     } catch (error) {
       console.error('Unexpected error fetching game sessions:', error);
+      toast({
+        title: "Error",
+        description: "Unexpected error fetching game sessions.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -169,9 +180,9 @@ export default function PlayerPage() {
         description: "User created successfully!"
       });
 
-        setAlertOpen(true);
-        setAlertTitle('Success');
-        setAlertDescription('User created successfully!');
+
+      // Automatically sign in after successful creation
+      handleSignIn();
 
     } catch (error: any) {
       setAlertOpen(true);
@@ -327,6 +338,16 @@ export default function PlayerPage() {
               return;
           }
 
+          // Check if the player is already in the session
+          if (gameSession.players && gameSession.players.includes(session.id)) {
+              toast({
+                  title: "Info",
+                  description: "You have already joined this game.",
+              });
+              setJoinedSessionId(sessionId);
+              return;
+          }
+
           const {data: updatedSession, error: updateError} = await supabase
               .from('game_sessions')
               .update({
@@ -349,11 +370,13 @@ export default function PlayerPage() {
 
           await fetchGameSessions();
 
-
           toast({
               title: "Success",
               description: "Successfully joined the game!",
           });
+
+          setJoinedSessionId(sessionId);
+
 
       } catch (error: any) {
           console.error('Unexpected error joining game:', error);
@@ -365,6 +388,33 @@ export default function PlayerPage() {
       }
   };
 
+  useEffect(() => {
+    const checkGameStatus = async () => {
+      if (joinedSessionId && session.id) {
+        const { data: gameSession, error: gameSessionError } = await supabase
+          .from('game_sessions')
+          .select('status')
+          .eq('id', joinedSessionId)
+          .single();
+
+        if (gameSessionError) {
+          console.error('Error fetching game session status:', gameSessionError);
+          return;
+        }
+
+        if (gameSession && gameSession.status === 'active') {
+          // Redirect the player to the game page
+          router.push(`/game/${joinedSessionId}`);
+        }
+      }
+    };
+
+    // Check the game status every 5 seconds
+    const intervalId = setInterval(checkGameStatus, 5000);
+
+    // Clean up the interval when the component unmounts or the session changes
+    return () => clearInterval(intervalId);
+  }, [joinedSessionId, session.id, router]);
 
 
   return (
@@ -418,6 +468,11 @@ export default function PlayerPage() {
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
                     placeholder="Enter your nickname"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSignIn();
+                      }
+                    }}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -462,6 +517,19 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader className="flex justify-between">
               <CardTitle>Welcome!</CardTitle>
+              <Button
+                variant="outline"
+                className="h-10 w-10 p-0 text-white rounded-full"
+                onClick={() => {
+                  handleSignOut();
+                }}
+                disabled={loading}
+              >
+                <LogOut
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                />
+              </Button>
             </CardHeader>
             <CardDescription>
               Hello, {session?.nickname}! GL HF!
@@ -484,62 +552,89 @@ export default function PlayerPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-
-
-      {/* Game Session List */}
-      <div className="container mx-auto max-w-4xl mt-8">
-        <h2 className="text-2xl font-semibold mb-4">Available Game Sessions</h2>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[200px]">Session Name</TableHead>
-                <TableHead>Players</TableHead>
-                <TableHead>Time per Question</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {gameSessions.map((session) => (
-                <TableRow key={session.id}>
-                  <TableCell className="font-medium">{session.sessionName}</TableCell>
-                  <TableCell>
-                    <Popover>
-                      <PopoverTrigger>
-                        {`${getPlayersInSession(session.id).length}/${session.maxPlayers}`}
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Players in Session</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            {getPlayersInSession(session.id).map((player) => (
-                              <div key={player} className="flex items-center space-x-4 py-2">
-                                <Avatar>
-                                  <AvatarImage src="https://github.com/shadcn.png" />
-                                  <AvatarFallback>{player.substring(0, 2)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="text-sm font-medium leading-none">{player}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </CardContent>
-                        </Card>
-                      </PopoverContent>
-                    </Popover>
-                  </TableCell>
-                  <TableCell>{session.timePerQuestionInSec === 0 ? '∞' : `${session.timePerQuestionInSec} seconds`}</TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" onClick={() => joinGame(session.id)}>Join Game</Button>
-                  </TableCell>
-                </TableRow>
+      {joinedSessionId ? (
+        // Lobby screen
+        <div className="container mx-auto max-w-4xl mt-8">
+          <h2 className="text-2xl font-semibold mb-4">Waiting for Game to Start</h2>
+          <Card className="border">
+            <CardHeader>
+              <CardTitle>Players in Lobby</CardTitle>
+              <CardDescription>Waiting for the game to start...</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Display list of players in the session */}
+              {getPlayersInSession(joinedSessionId).map((player) => (
+                <div key={player} className="flex items-center space-x-4 py-2">
+                  <Avatar>
+                    <AvatarImage src="https://github.com/shadcn.png" />
+                    <AvatarFallback>{player.substring(0, 2)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium leading-none">{player}</p>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </CardContent>
+          </Card>
         </div>
-      </div>
+      ) : (
+        // Game Session List
+        <div className="container mx-auto max-w-4xl mt-8">
+          <h2 className="text-2xl font-semibold mb-4">Available Game Sessions</h2>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Session Name</TableHead>
+                  <TableHead>Players</TableHead>
+                  <TableHead>Time per Question</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {gameSessions.map((session) => (
+                  <TableRow key={session.id}>
+                    <TableCell className="font-medium">{session.sessionName}</TableCell>
+                    <TableCell>
+                      <Popover>
+                        <PopoverTrigger>
+                          {`${getPlayersInSession(session.id).length}/${session.maxPlayers}`}
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80">
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Players in Session</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              {getPlayersInSession(session.id).map((player) => (
+                                <div key={player} className="flex items-center space-x-4 py-2">
+                                  <Avatar>
+                                    <AvatarImage src="https://github.com/shadcn.png" />
+                                    <AvatarFallback>{player.substring(0, 2)}</AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="text-sm font-medium leading-none">{player}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        </PopoverContent>
+                      </Popover>
+                    </TableCell>
+                    <TableCell>{session.timePerQuestionInSec === 0 ? '∞' : `${session.timePerQuestionInSec} seconds`}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" onClick={() => joinGame(session.id)} disabled={getPlayersInSession(session.id).length >= session.maxPlayers}>
+                        {getPlayersInSession(session.id).length >= session.maxPlayers ? "Full" : "Join Game"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
