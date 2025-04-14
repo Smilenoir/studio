@@ -47,8 +47,8 @@ export default function PlayerPage() {
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
   const [session, setSession] = useState<UserSession>({nickname: null, id: null});
   const [alertOpen, setAlertOpen] = useState(false);
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertDescription, setAlertDescription] = useState('');
+  const [alertTitle, setAlertTitle] = useState<string | null>(null);
+  const [alertDescription, setAlertDescription] = useState<string | null>(null);
     const {toast} = useToast();
 
 
@@ -109,6 +109,9 @@ export default function PlayerPage() {
                 .maybeSingle();
 
             if (selectError) {
+                setAlertOpen(true);
+                setAlertTitle('Error');
+                setAlertDescription("Nickname already exists. Please choose a different one.");
                  toast({
                         title: "Error",
                         description: "Nickname already exists. Please choose a different one.",
@@ -124,7 +127,16 @@ export default function PlayerPage() {
                 .select();
 
             if (insertError) {
-                throw insertError;
+                setAlertOpen(true);
+                setAlertTitle('Error');
+                setAlertDescription(insertError.message);
+
+                  toast({
+                        title: "Error",
+                        description: insertError.message,
+                         variant: "destructive"
+                    });
+                return;
             }
 
            toast({
@@ -133,7 +145,10 @@ export default function PlayerPage() {
                     });
 
 
-        } catch (error) {
+        } catch (error: any) {
+               setAlertOpen(true);
+                setAlertTitle('Error');
+                setAlertDescription(error.error_description || error.message);
               toast({
                         title: "Error",
                         description: error.error_description || error.message,
@@ -412,5 +427,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
