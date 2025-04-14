@@ -43,7 +43,7 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion] = React.useState<Omit<Question, 'id'>>({
+  const [newQuestion, setNewQuestion] = useState<Omit<Question, 'id'>>({
     groupId: '',
     questionType: '' as 'multipleChoice' | 'numerical',
     questionText: '',
@@ -481,14 +481,14 @@ export const QuestionEditor = () => {
                 <Card key={question.id}>
                   <CardHeader>
                     <CardTitle>{question.questionText}</CardTitle>
+                    {question.questionType === 'multipleChoice' && (
+                      <CardDescription>Correct Answer: {question.correctAnswer}</CardDescription>
+                    )}
+                    {question.questionType === 'numerical' && (
+                      <CardDescription>Correct Answer: {question.correctNumber}</CardDescription>
+                    )}
                     <CardDescription>
                       Group: {getGroupName(question.groupId)}, Type: {question.questionType}
-                      {question.questionType === 'multipleChoice' && (
-                        <span>, Correct Answer: {question.correctAnswer}</span>
-                      )}
-                      {question.questionType === 'numerical' && (
-                        <span>, Correct Answer: {question.correctNumber}</span>
-                      )}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex gap-2">
