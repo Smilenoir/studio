@@ -6,8 +6,6 @@ import {FunFactGenerator} from '@/components/fun-fact-generator';
 import {ResultsDisplay} from '@/components/results-display';
 import {Card} from '@/components/ui/card';
 import {useEffect, useState} from 'react';
-import {useRouter} from 'next/navigation';
-import {Button} from '@/components/ui/button';
 
 interface Question {
   id: number;
@@ -37,7 +35,7 @@ const questions: Question[] = [
   },
 ];
 
-export default function Home() {
+export default function PlayerPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<string[]>(
     Array(questions.length).fill('')
@@ -51,7 +49,6 @@ export default function Home() {
   }>({correct: 0, total: 0, percentage: 0});
 
   const currentQuestion = questions[currentQuestionIndex];
-  const router = useRouter();
 
   useEffect(() => {
     if (timeRemaining > 0 && !quizFinished) {
@@ -111,12 +108,32 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen py-2 bg-gray-900 text-white">
-      <h1 className="text-3xl font-bold mb-4">QuizWhiz</h1>
-      <div className="flex space-x-4">
-        <Button onClick={() => router.push('/player')}>Player</Button>
-        <Button onClick={() => router.push('/admin')}>Admin</Button>
-      </div>
-      
+      <h1 className="text-3xl font-bold mb-4">QuizWhiz - Player</h1>
+      <Card className="w-full max-w-md p-4 rounded-lg shadow-md bg-gray-800">
+        {!quizFinished ? (
+          <>
+            <TimerDisplay time={timeRemaining} />
+            <QuestionDisplay question={currentQuestion.text} />
+            <AnswerInput
+              options={currentQuestion.options}
+              onAnswer={handleAnswer}
+              selectedAnswer={userAnswers[currentQuestionIndex]}
+              onSubmit={nextQuestion}
+            />
+          </>
+        ) : (
+          <>
+            <ResultsDisplay results={results} />
+            <FunFactGenerator topics={questions.map(q => q.text)} />
+            <button
+              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4"
+              onClick={handleRestart}
+            >
+              Restart Quiz
+            </button>
+          </>
+        )}
+      </Card>
     </div>
   );
 }
