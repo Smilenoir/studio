@@ -171,7 +171,6 @@ export default function PlayerPage() {
           return;
       }
 
-
         const userSession: UserSession = {
             nickname: user.nickname,
             id: user.id,
@@ -296,17 +295,6 @@ export default function PlayerPage() {
                 Hello, {session?.nickname}! GL HF!
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Button
-                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"
-                onClick={() => {
-                  handleSignOut();
-                }}
-                disabled={loading}
-              >
-                Sign Out
-              </Button>
-            </CardContent>
           </Card>
         )}
       </div>
@@ -325,6 +313,18 @@ export default function PlayerPage() {
             </AlertDialogContent>
           </AlertDialog>
 
+        {session.nickname && (
+              <Button
+                  variant="destructive"
+                  className="absolute bottom-4 right-4"
+                  onClick={() => {
+                      handleSignOut();
+                  }}
+                  disabled={loading}
+              >
+                  Sign Out
+              </Button>
+          )}
 
 
       {/* Game Session List */}
@@ -384,3 +384,4 @@ export default function PlayerPage() {
     </div>
   );
 }
+
