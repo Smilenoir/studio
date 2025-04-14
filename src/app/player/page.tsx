@@ -21,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 import { Label } from "@/components/ui/label";
+import {useToast} from "@/hooks/use-toast";
 
 interface GameSession {
   id: string;
@@ -48,6 +49,7 @@ export default function PlayerPage() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertDescription, setAlertDescription] = useState('');
+    const {toast} = useToast();
 
 
   useEffect(() => {
@@ -132,11 +134,11 @@ export default function PlayerPage() {
                 id: nickname,
             };
 
-            setSession(userSession);
-            await saveSession(userSession);
+            //setSession(userSession);
+            //await saveSession(userSession);
 
             setAlertTitle("Success");
-            setAlertDescription('Account created successfully. You are now signed in.');
+            setAlertDescription('Account created successfully. You can sign in now.');
             setAlertOpen(true);
 
 
@@ -184,9 +186,13 @@ export default function PlayerPage() {
       setSession(userSession);
       await saveSession(userSession);
 
-      setAlertTitle("Success");
-      setAlertDescription("Signed in successfully!");
-      setAlertOpen(true);
+      // setAlertTitle("Success");
+      // setAlertDescription("Signed in successfully!");
+      // setAlertOpen(true);
+       toast({
+                title: "Success",
+                description: "Signed in successfully!"
+            });
 
 
     } catch (error: any) {
@@ -204,6 +210,10 @@ export default function PlayerPage() {
       setLoading(true)
         await clearSession();
       setSession({nickname: null, id: null});
+          toast({
+              title: "Success",
+              description: "Signed out successfully!"
+          });
     } catch (error: any) {
         setAlertTitle("Error");
         setAlertDescription(error.error_description || error.message);
@@ -396,4 +406,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
