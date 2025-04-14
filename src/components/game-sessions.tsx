@@ -7,6 +7,7 @@ import {Label} from '@/components/ui/label';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Slider} from '@/components/ui/slider';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
+import {supabase} from "@/lib/supabaseClient";
 
 interface GameSession {
   id: string;
@@ -15,7 +16,12 @@ interface GameSession {
   questionGroupId: string;
   timePerQuestion?: number;
   joinedPlayers: number;
-  status: 'active' | 'waiting' | 'finished';
+  status: 'waiting' | 'active' | 'finished';
+}
+
+interface Group {
+  id: string;
+  name: string;
 }
 
 export const GameSessions = () => {
@@ -27,11 +33,26 @@ export const GameSessions = () => {
     timePerQuestion: undefined,
   });
 
-  const [availableGroups, setAvailableGroups] = useState([
-    {id: '1', name: 'Sample Group 1'},
-    {id: '2', name: 'Sample Group 2'},
-    {id: '3', name: 'Sample Group 3'},
-  ]);
+  const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
+
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
+  const fetchGroups = async () => {
+    try {
+      const {data, error} = await supabase
+        .from('groups')
+        .select('*');
+      if (error) {
+        console.error('Error fetching groups:', JSON.stringify(error));
+        return;
+      }
+      setAvailableGroups(data || []);
+    } catch (error) {
+      console.error('Unexpected error fetching groups:', JSON.stringify(error));
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const {name, value} = e.target;
@@ -68,7 +89,19 @@ export const GameSessions = () => {
       joinedPlayers: 0,
       status: 'waiting',
     };
-    setSessions([...sessions, sessionToAdd]);
+
+    // Get existing sessions from localStorage
+    const storedSessions = localStorage.getItem('gameSessions');
+    const existingSessions: GameSession[] = storedSessions ? JSON.parse(storedSessions) : [];
+
+    // Add the new session
+    const updatedSessions = [...existingSessions, sessionToAdd];
+
+    // Save the updated sessions back to localStorage
+    localStorage.setItem('gameSessions', JSON.stringify(updatedSessions));
+
+    setSessions(updatedSessions);
+
     setNewSession({
       name: '',
       maxPlayers: 5,
