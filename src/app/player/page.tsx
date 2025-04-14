@@ -79,13 +79,14 @@ export default function PlayerPage() {
       const { data: existingUser, error: selectError } = await supabase
         .from('users')
         .select('*')
-        .eq('nickname', nickname);
+        .eq('nickname', nickname)
+        .maybeSingle();
 
       if (selectError) {
         throw selectError;
       }
 
-      if (existingUser && existingUser.length > 0) {
+      if (existingUser) {
         toast({
           variant: "destructive",
           title: "Error",
@@ -249,7 +250,7 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader>
               <CardTitle>Welcome!</CardTitle>
-              <CardDescription>You are logged in.</CardDescription>
+              <CardDescription>Hello, {session?.user?.user_metadata?.nickname}! GL HF!</CardDescription>
             </CardHeader>
             <CardContent>
               <Button
@@ -324,5 +325,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
