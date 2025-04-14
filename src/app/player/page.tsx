@@ -6,12 +6,26 @@ import {FunFactGenerator} from '@/components/fun-fact-generator';
 import {ResultsDisplay} from '@/components/results-display';
 import {Card} from '@/components/ui/card';
 import {useEffect, useState} from 'react';
+import {supabase} from "@/lib/supabaseClient";
+import {useToast} from "@/hooks/use-toast";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
 
 interface Question {
   id: number;
   text: string;
   options: string[];
   correctAnswer: string;
+}
+
+interface GameSession {
+    id: string;
+    sessionName: string;
+    maxPlayers: number;
+    questionGroupId: string;
+    timePerQuestionInSec: number;
+    createdAt: string;
+    status: 'waiting' | 'active' | 'finished';
 }
 
 const questions: Question[] = [
@@ -35,6 +49,14 @@ const questions: Question[] = [
   },
 ];
 
+const getRandomNickname = () => {
+    const adjectives = ['Funny', 'Silly', 'Crazy', 'Happy', 'Brave'];
+    const nouns = ['Whiz', 'Wizard', 'Champ', 'Ace', 'Pro'];
+    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+    return `${randomAdjective} ${randomNoun}`;
+};
+
 export default function PlayerPage() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<string[]>(
@@ -48,9 +70,15 @@ export default function PlayerPage() {
     percentage: number;
   }>({correct: 0, total: 0, percentage: 0});
 
+    const [sessions, setSessions] = useState<GameSession[]>([]);
+    const [nickname, setNickname] = useState(getRandomNickname());
+
+    const {toast} = useToast();
+
   const currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
+      fetchSessions();
     if (timeRemaining > 0 && !quizFinished) {
       const timerId = setTimeout(() => {
         setTimeRemaining(timeRemaining - 1);
@@ -61,6 +89,31 @@ export default function PlayerPage() {
       nextQuestion();
     }
   }, [timeRemaining, quizFinished]);
+
+    const fetchSessions = async () => {
+        try {
+            const {data, error} = await supabase
+                .from('game_sessions')
+                .select('*');
+            if (error) {
+                console.error('Error fetching game sessions:', JSON.stringify(error));
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to fetch game sessions."
+                })
+                return;
+            }
+            setSessions(data || []);
+        } catch (error) {
+            console.error('Unexpected error fetching game sessions:', JSON.stringify(error));
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Unexpected error fetching game sessions."
+            })
+        }
+    };
 
   const handleAnswer = (answer: string) => {
     const newAnswers = [...userAnswers];
@@ -109,6 +162,31 @@ export default function PlayerPage() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen py-2 bg-gray-900 text-white">
       <h1 className="text-3xl font-bold mb-4">QuizWhiz - Player</h1>
+
+        <div className="mb-4">
+            <Label htmlFor="nickname">Nickname:</Label>
+            <Input
+                type="text"
+                id="nickname"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                className="text-black"
+            />
+        </div>
+
+        <h2 className="text-xl font-semibold mb-2">Available Game Sessions</h2>
+        {sessions.length === 0 ? (
+            <div>No sessions available.</div>
+        ) : (
+            <ul className="list-disc pl-5">
+                {sessions.map(session => (
+                    <li key={session.id} className="mb-2">
+                        {session.sessionName} (Max Players: {session.maxPlayers})
+                        <Button className="ml-2">Join</Button>
+                    </li>
+                ))}
+            </ul>
+        )}
       <Card className="w-full max-w-md p-4 rounded-lg shadow-md bg-gray-800">
         {!quizFinished ? (
           <>
@@ -137,3 +215,4 @@ export default function PlayerPage() {
     </div>
   );
 }
+
