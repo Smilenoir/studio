@@ -7,6 +7,17 @@ import {Label} from '@/components/ui/label';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {supabase} from '@/lib/supabaseClient';
 import {useToast} from "@/hooks/use-toast"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Group {
   id: string;
@@ -18,7 +29,9 @@ export const GroupEditor = () => {
   const [newGroupName, setNewGroupName] = useState('');
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [groupNameError, setGroupNameError] = useState<string | null>(null);
-    const { toast } = useToast()
+  const { toast } = useToast()
+  const [open, setOpen] = React.useState(false)
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGroups();
@@ -29,21 +42,21 @@ export const GroupEditor = () => {
       const {data, error} = await supabase.from('groups').select('*');
       if (error) {
         console.error('Error fetching groups:', JSON.stringify(error));
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to fetch groups."
-          })
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch groups."
+        })
         return;
       }
       setGroups(data || []);
     } catch (error) {
       console.error('Unexpected error fetching groups:', JSON.stringify(error));
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Unexpected error fetching groups."
-        })
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error fetching groups."
+      })
     }
   };
 
@@ -55,21 +68,21 @@ export const GroupEditor = () => {
   const addGroup = async () => {
     if (newGroupName.trim() === '') {
       setGroupNameError('Group name cannot be empty.');
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Group name cannot be empty."
-        })
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Group name cannot be empty."
+      })
       return;
     }
 
     if (groups.some(group => group.name === newGroupName)) {
       setGroupNameError('Group name already exists.');
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Group name already exists."
-        })
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Group name already exists."
+      })
       return;
     }
 
@@ -83,27 +96,27 @@ export const GroupEditor = () => {
 
       if (error) {
         console.error('Error adding group:', JSON.stringify(error));
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to add group."
-          })
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to add group."
+        })
         return;
       }
 
       setGroups([...groups, {id: newId, name: newGroupName}]);
       setNewGroupName('');
-        toast({
-            title: "Success",
-            description: "Group added successfully."
-        })
+      toast({
+        title: "Success",
+        description: "Group added successfully."
+      })
     } catch (error) {
       console.error('Unexpected error adding group:', JSON.stringify(error));
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Unexpected error adding group."
-        })
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error adding group."
+      })
     }
   };
 
@@ -118,21 +131,21 @@ export const GroupEditor = () => {
   const updateGroup = async () => {
     if (newGroupName.trim() === '') {
       setGroupNameError('Group name cannot be empty.');
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Group name cannot be empty."
-        })
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Group name cannot be empty."
+      })
       return;
     }
 
     if (groups.some(group => group.name === newGroupName && group.id !== editingGroupId)) {
       setGroupNameError('Group name already exists.');
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Group name already exists."
-        })
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Group name already exists."
+      })
       return;
     }
 
@@ -142,15 +155,15 @@ export const GroupEditor = () => {
           .from('groups')
           .update({name: newGroupName})
           .eq('id', editingGroupId)
-            .select();
+          .select();
 
         if (error) {
           console.error('Error updating group:', JSON.stringify(error));
-            toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to update group."
-            })
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to update group."
+          })
           return;
         }
 
@@ -160,48 +173,58 @@ export const GroupEditor = () => {
         setGroups(updatedGroups);
         setEditingGroupId(null);
         setNewGroupName('');
-          toast({
-              title: "Success",
-              description: "Group updated successfully."
-          })
+        toast({
+          title: "Success",
+          description: "Group updated successfully."
+        })
       } catch (error) {
         console.error('Unexpected error updating group:', JSON.stringify(error));
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Unexpected error updating group."
-          })
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Unexpected error updating group."
+        })
       }
     }
   };
 
-  const deleteGroup = async (id: string) => {
-    try {
-      const {error} = await supabase.from('groups').delete().eq('id', id);
+  const confirmDeleteGroup = (id: string) => {
+    setDeletingGroupId(id);
+    setOpen(true);
+  };
 
-      if (error) {
-        console.error('Error deleting group:', JSON.stringify(error));
+  const deleteGroup = async () => {
+    if (deletingGroupId) {
+      try {
+        const {error} = await supabase.from('groups').delete().eq('id', deletingGroupId);
+
+        if (error) {
+          console.error('Error deleting group:', JSON.stringify(error));
           toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to delete group."
-          })
-        return;
-      }
-
-      const updatedGroups = groups.filter(group => group.id !== id);
-      setGroups(updatedGroups);
-        toast({
-            title: "Success",
-            description: "Group deleted successfully."
-        })
-    } catch (error) {
-      console.error('Unexpected error deleting group:', JSON.stringify(error));
-        toast({
             variant: "destructive",
             title: "Error",
-            description: "Unexpected error deleting group."
+            description: "Failed to delete group."
+          })
+          return;
+        }
+
+        const updatedGroups = groups.filter(group => group.id !== deletingGroupId);
+        setGroups(updatedGroups);
+        toast({
+          title: "Success",
+          description: "Group deleted successfully."
         })
+      } catch (error) {
+        console.error('Unexpected error deleting group:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Unexpected error deleting group."
+        })
+      } finally {
+        setOpen(false);
+        setDeletingGroupId(null);
+      }
     }
   };
 
@@ -254,7 +277,23 @@ export const GroupEditor = () => {
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <Button size="sm" onClick={() => startEditing(group.id)}>Edit</Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteGroup(group.id)}>Delete</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the group and remove its data from our servers.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteGroup()}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </CardContent>
                 </Card>
               ))}
