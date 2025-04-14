@@ -10,6 +10,7 @@ export default function Home() {
       <h1 className="text-3xl font-bold mb-4">QuizWhiz</h1>
       <div className="flex space-x-4">
         <Button onClick={() => router.push('/admin')}>Admin</Button>
+        <Button onClick={() => router.push('/player')}>Player</Button>
       </div>
       
     </div>
