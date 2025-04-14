@@ -127,7 +127,6 @@ export default function PlayerPage() {
                 throw insertError;
             }
 
-            // Automatically sign in the user after successful registration
             const userSession: UserSession = {
                 nickname: nickname,
                 id: nickname,
@@ -240,6 +239,25 @@ export default function PlayerPage() {
           />
         </Button>
       </div>
+
+        <div className="absolute bottom-4 right-4">
+            {session.nickname && (
+                <Button
+                    variant="outline"
+                    className="h-10 w-10 p-0 text-white rounded-full"
+                    onClick={() => {
+                        handleSignOut();
+                    }}
+                    disabled={loading}
+                >
+                    <LogOut
+                        className="h-6 w-6"
+                        aria-hidden="true"
+                    />
+                </Button>
+            )}
+        </div>
+
       <h1 className="text-3xl font-bold mb-4">Player Page</h1>
 
       <div className="w-full max-w-md">
@@ -297,22 +315,7 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader className="flex justify-between">
               <CardTitle>Welcome!</CardTitle>
-              {session.nickname && (
-                  <Button
-                      variant="outline"
-                      className="h-10 w-10 p-0 text-white rounded-full"
-                      onClick={() => {
-                          handleSignOut();
-                      }}
-                      disabled={loading}
-                  >
-                      <LogOut
-                          className="h-6 w-6"
-                          aria-hidden="true"
-                      />
-                  </Button>
-              )}
-            </CardHeader>
+              </CardHeader>
             <CardDescription>
                 Hello, {session?.nickname}! GL HF!
             </CardDescription>
@@ -393,5 +396,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
