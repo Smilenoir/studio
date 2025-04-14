@@ -32,7 +32,7 @@ export const Dashboard = () => {
         <ul>
           {activeSessions.map(session => (
             <li key={session.id}>
-              {session.name} - Max Players: {session.maxPlayers}, Joined: {session.joinedPlayers}, Status: {session.status}
+              {session.name} - Players: {session.joinedPlayers}/{session.maxPlayers}, Status: {session.status}
             </li>
           ))}
         </ul>
