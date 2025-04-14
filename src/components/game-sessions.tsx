@@ -8,6 +8,18 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Slider} from '@/components/ui/slider';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {supabase} from "@/lib/supabaseClient";
+import {useToast} from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface GameSession {
   id: string;
@@ -34,10 +46,26 @@ export const GameSessions = () => {
   });
 
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
+  const {toast} = useToast();
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGroups();
+    loadSessionsFromLocalStorage();
   }, []);
+
+  const loadSessionsFromLocalStorage = () => {
+    const storedSessions = localStorage.getItem('gameSessions');
+    if (storedSessions) {
+      setSessions(JSON.parse(storedSessions));
+    }
+  };
+
+  useEffect(() => {
+    localStorage.setItem('gameSessions', JSON.stringify(sessions));
+  }, [sessions]);
 
   const fetchGroups = async () => {
     try {
@@ -90,17 +118,7 @@ export const GameSessions = () => {
       status: 'waiting',
     };
 
-    // Get existing sessions from localStorage
-    const storedSessions = localStorage.getItem('gameSessions');
-    const existingSessions: GameSession[] = storedSessions ? JSON.parse(storedSessions) : [];
-
-    // Add the new session
-    const updatedSessions = [...existingSessions, sessionToAdd];
-
-    // Save the updated sessions back to localStorage
-    localStorage.setItem('gameSessions', JSON.stringify(updatedSessions));
-
-    setSessions(updatedSessions);
+    setSessions([...sessions, sessionToAdd]);
 
     setNewSession({
       name: '',
@@ -108,6 +126,62 @@ export const GameSessions = () => {
       questionGroupId: '',
       timePerQuestion: undefined,
     });
+  };
+
+  const startEditing = (id: string) => {
+    const sessionToEdit = sessions.find(session => session.id === id);
+    if (sessionToEdit) {
+      setNewSession({
+        name: sessionToEdit.name,
+        maxPlayers: sessionToEdit.maxPlayers,
+        questionGroupId: sessionToEdit.questionGroupId,
+        timePerQuestion: sessionToEdit.timePerQuestion,
+      });
+      setEditingSessionId(id);
+    }
+  };
+
+  const updateSession = () => {
+    if (editingSessionId) {
+      const updatedSessions = sessions.map(session =>
+        session.id === editingSessionId ? {
+          ...session,
+          name: newSession.name,
+          maxPlayers: newSession.maxPlayers,
+          questionGroupId: newSession.questionGroupId,
+          timePerQuestion: newSession.timePerQuestion,
+        } : session
+      );
+      setSessions(updatedSessions);
+      setEditingSessionId(null);
+      setNewSession({
+        name: '',
+        maxPlayers: 5,
+        questionGroupId: '',
+        timePerQuestion: undefined,
+      });
+    }
+  };
+
+  const confirmDeleteSession = (id: string) => {
+    setDeletingSessionId(id);
+    setOpen(true);
+  };
+
+  const deleteSession = () => {
+    if (deletingSessionId) {
+      const updatedSessions = sessions.filter(session => session.id !== deletingSessionId);
+      setSessions(updatedSessions);
+      setOpen(false);
+      setDeletingSessionId(null);
+    }
+  };
+
+  const restartSession = (id: string) => {
+    const updatedSessions = sessions.map(session =>
+      session.id === id ? {...session, joinedPlayers: 0, status: 'waiting'} : session
+    );
+    setSessions(updatedSessions);
   };
 
   return (
@@ -146,7 +220,9 @@ export const GameSessions = () => {
             <Label htmlFor="questionGroupId">Question Group</Label>
             <Select onValueChange={handleSelectChange}>
               <SelectTrigger id="questionGroupId">
-                <SelectValue placeholder="Select a question group"/>
+                <SelectValue placeholder="Select a question group">
+                  {availableGroups.find(group => group.id === newSession.questionGroupId)?.name || "Select a group"}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {availableGroups.map(group => (
@@ -164,14 +240,14 @@ export const GameSessions = () => {
               type="number"
               id="timePerQuestion"
               name="timePerQuestion"
-              value={newSession.timePerQuestion}
+              value={newSession.timePerQuestion !== undefined ? newSession.timePerQuestion.toString() : ''}
               onChange={handleInputChange}
               placeholder="Enter time per question"
             />
           </div>
 
-          <Button type="button" onClick={addSession}>
-            Create Session
+          <Button type="button" onClick={editingSessionId ? updateSession : addSession}>
+            {editingSessionId ? 'Update Session' : 'Create Session'}
           </Button>
         </CardContent>
       </Card>
@@ -190,7 +266,26 @@ export const GameSessions = () => {
               <ul>
                 {sessions.map(session => (
                   <li key={session.id}>
-                    {session.name} (Max Players: {session.maxPlayers}, Group: {session.questionGroupId}, Status: {session.status})
+                    {session.name} (Max Players: {session.maxPlayers}, Group: {availableGroups.find(group => group.id === session.questionGroupId)?.name}, Status: {session.status})
+                    <Button size="sm" onClick={() => startEditing(session.id)}>Edit</Button>
+                    <Button size="sm" onClick={() => restartSession(session.id)}>Restart</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the session and remove its data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteSession()}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </li>
                 ))}
               </ul>
