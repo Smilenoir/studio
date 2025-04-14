@@ -43,7 +43,7 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion] = useState<Omit<Question, 'id'>>({
+  const [newQuestion, setNewQuestion] = React.useState<Omit<Question, 'id'>>({
     groupId: '',
     questionType: '' as 'multipleChoice' | 'numerical',
     questionText: '',
@@ -58,6 +58,7 @@ export const QuestionEditor = () => {
   const [typeError, setTypeError] = useState<string | null>(null);
   const [open, setOpen] = React.useState(false)
   const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
+  const [selectedFilterGroup, setSelectedFilterGroup] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -67,7 +68,11 @@ export const QuestionEditor = () => {
 
   const fetchQuestions = async () => {
     try {
-      const {data, error} = await supabase.from('questions').select('*');
+      let query = supabase.from('questions').select('*');
+      if (selectedFilterGroup) {
+        query = query.eq('groupId', selectedFilterGroup);
+      }
+      const {data, error} = await query;
       if (error) {
         console.error('Error fetching questions:', JSON.stringify(error));
         toast({
@@ -195,7 +200,7 @@ export const QuestionEditor = () => {
         .select();
 
       if (error) {
-        console.error('Error adding question:', error);
+        console.error('Error adding question:', JSON.stringify(error));
         toast({
           variant: "destructive",
           title: "Error",
@@ -331,6 +336,10 @@ export const QuestionEditor = () => {
 
   const selectedGroupName = groups.find(group => group.id === newQuestion.groupId)?.name || '';
 
+  const getGroupName = (groupId: string) => {
+    return groups.find(group => group.id === groupId)?.name || 'Unknown Group';
+  };
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* Question Editor Form */}
@@ -445,6 +454,25 @@ export const QuestionEditor = () => {
           <CardDescription>Manage existing questions.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="grid gap-2">
+            <Label htmlFor="filterGroup">Filter by Group</Label>
+            <Select onValueChange={(value) => {
+              setSelectedFilterGroup(value === 'all' ? null : value);
+              fetchQuestions();
+            }}>
+              <SelectTrigger id="filterGroup">
+                <SelectValue placeholder="All Groups">
+                  {selectedFilterGroup ? getGroupName(selectedFilterGroup) : 'All Groups'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Groups</SelectItem>
+                {groups.map(group => (
+                  <SelectItem key={group.id} value={group.id}>{group.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {questions.length === 0 ? (
             <div>No questions added yet.</div>
           ) : (
@@ -453,7 +481,15 @@ export const QuestionEditor = () => {
                 <Card key={question.id}>
                   <CardHeader>
                     <CardTitle>{question.questionText}</CardTitle>
-                    <CardDescription>Group: {question.groupId}, Type: {question.questionType}</CardDescription>
+                    <CardDescription>
+                      Group: {getGroupName(question.groupId)}, Type: {question.questionType}
+                      {question.questionType === 'multipleChoice' && (
+                        <span>, Correct Answer: {question.correctAnswer}</span>
+                      )}
+                      {question.questionType === 'numerical' && (
+                        <span>, Correct Answer: {question.correctNumber}</span>
+                      )}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <Button size="sm" onClick={() => startEditing(question.id)}>Edit</Button>
