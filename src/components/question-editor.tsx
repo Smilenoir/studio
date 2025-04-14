@@ -30,9 +30,9 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion] = useState<Omit<Question, 'id'>>({
+  const [newQuestion, setNewQuestion/*: React.Dispatch<React.SetStateAction<Omit<Question, 'id'>>>*/] = useState<Omit<Question, 'id'>>({
     group: '',
-    type: 'multipleChoice',
+    type: '' as 'multipleChoice' | 'numerical',
     text: '',
     options: ['', '', '', ''],
     correctAnswer: '',
@@ -67,7 +67,7 @@ export const QuestionEditor = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Unexpected error fetching questions."
+        description: "Failed to fetch questions."
       });
     }
   };
@@ -90,7 +90,7 @@ export const QuestionEditor = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Unexpected error fetching groups."
+        description: "Failed to fetch groups."
       });
     }
   };
@@ -110,15 +110,12 @@ export const QuestionEditor = () => {
   };
 
   const handleSelectChange = (value: string, name: string) => {
-    setNewQuestion({...newQuestion, [name]: value});
+    setNewQuestion({...newQuestion, [name]: value as any});
     if (name === 'group') {
       setGroupError(null); // Clear group error when a group is selected
     }
     if (name === 'type') {
       setTypeError(null); // Clear type error when a type is selected
-      if (name === 'type' && value === 'multipleChoice') {
-        setNewQuestion(prev => ({...prev, options: ['', '', '', '']}));
-      }
     }
   };
 
@@ -173,7 +170,7 @@ export const QuestionEditor = () => {
       }
 
       setQuestions([...questions, questionToAdd]);
-      setNewQuestion({group: '', type: 'multipleChoice', text: '', options: ['', '', '', ''], correctAnswer: ''});
+      setNewQuestion({group: '', type: '' as 'multipleChoice' | 'numerical', text: '', options: ['', '', '', ''], correctAnswer: ''});
       toast({
         title: "Success",
         description: "Question added successfully."
@@ -183,7 +180,7 @@ export const QuestionEditor = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Unexpected error adding question."
+        description: "Failed to add question."
       });
     }
   };
@@ -210,7 +207,7 @@ export const QuestionEditor = () => {
           toast({
             variant: "destructive",
             title: "Error",
-            description: "Failed to update question."
+            description: "Failed to add question."
           });
           return;
         }
@@ -220,7 +217,7 @@ export const QuestionEditor = () => {
         );
         setQuestions(updatedQuestions);
         setEditingQuestionId(null);
-        setNewQuestion({group: '', type: 'multipleChoice', text: '', options: ['', '', '', ''], correctAnswer: ''});
+        setNewQuestion({group: '', type: '' as 'multipleChoice' | 'numerical', text: '', options: ['', '', '', ''], correctAnswer: ''});
         toast({
           title: "Success",
           description: "Question updated successfully."
@@ -230,7 +227,7 @@ export const QuestionEditor = () => {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to update question."
+          description: "Failed to add question."
         });
       }
     }
@@ -245,7 +242,7 @@ export const QuestionEditor = () => {
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to delete question."
+          description: "Failed to add question."
         });
         return;
       }
@@ -261,7 +258,7 @@ export const QuestionEditor = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete question."
+        description: "Failed to add question."
       });
     }
   };
@@ -350,6 +347,20 @@ export const QuestionEditor = () => {
                 </Select>
               </div>
             </>
+          )}
+
+          {newQuestion.type === 'numerical' && (
+            <div className="grid gap-2">
+              <Label htmlFor="correctAnswer">Correct Answer</Label>
+              <Input
+                type="number"
+                id="correctAnswer"
+                name="correctAnswer"
+                value={newQuestion.correctAnswer}
+                onChange={handleInputChange}
+                placeholder="Enter the correct numerical answer"
+              />
+            </div>
           )}
 
           <Button
