@@ -17,6 +17,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface GameSession {
   id: string;
@@ -52,6 +53,17 @@ export default function PlayerPage() {
     } catch (error) {
       console.error('Unexpected error fetching game sessions:', error);
     }
+  };
+
+  // Dummy player data for demonstration
+  const getPlayersInSession = (sessionId: string) => {
+    // Replace this with actual logic to fetch player data from your data source
+    const players = [
+      { id: '1', nickname: 'Player1' },
+      { id: '2', nickname: 'Player2' },
+      { id: '3', nickname: 'Player3' },
+    ];
+    return players;
   };
 
   return (
@@ -97,7 +109,33 @@ export default function PlayerPage() {
               {gameSessions.map((session) => (
                 <TableRow key={session.id}>
                   <TableCell className="font-medium">{session.sessionName}</TableCell>
-                  <TableCell>{`0/${session.maxPlayers}`}</TableCell>
+                  <TableCell>
+                    <Popover>
+                      <PopoverTrigger>
+                        {`0/${session.maxPlayers}`}
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Players in Session</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            {getPlayersInSession(session.id).map((player) => (
+                              <div key={player.id} className="flex items-center space-x-4 py-2">
+                                <Avatar>
+                                  <AvatarImage src="https://github.com/shadcn.png" />
+                                  <AvatarFallback>{player.nickname.substring(0, 2)}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="text-sm font-medium leading-none">{player.nickname}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
                   <TableCell>{session.timePerQuestionInSec === 0 ? '∞' : `${session.timePerQuestionInSec} seconds`}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm">Join Game</Button>
