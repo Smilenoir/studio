@@ -1,7 +1,7 @@
 'use client';
 
 import {useRouter} from "next/navigation";
-import {useEffect, useState} from "react";
+import {useEffect, useState, useRef} from "react";
 import {supabase} from "@/lib/supabaseClient";
 import {QuestionDisplay} from "@/components/question-display";
 import {AnswerInput} from "@/components/answer-input";
@@ -32,6 +32,13 @@ interface GameSession {
   players: string[];
 }
 
+interface UserAnswer {
+  userId: string;
+  answer: string;
+  zScore?: number;
+  timestamp: number;
+}
+
 export default function GamePage() {
   const [question, setQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
@@ -45,6 +52,23 @@ export default function GamePage() {
   const [isTimed, setIsTimed] = useState(false);
   const [isObserver, setIsObserver] = useState(false); // New state for observer mode
   const [timeExpired, setTimeExpired] = useState(false);
+  const [userAnswer, setUserAnswer] = useState<UserAnswer | null>(null);
+  const [numericalAnswers, setNumericalAnswers] = useState<UserAnswer[]>([]);
+  const [ranking, setRanking] = useState<{ userId: string; score: number; timestamp: number; }[]>([]);
+  const rankingRef = useRef(ranking);
+
+  useEffect(() => {
+    rankingRef.current = ranking;
+  }, [ranking]);
+
+  const getSession = () => {
+    const storedSession = localStorage.getItem('userSession');
+    if (storedSession) {
+      return JSON.parse(storedSession);
+    }
+
+    return null;
+  }
 
   useEffect(() => {
     if (!sessionId) return;
@@ -119,27 +143,90 @@ export default function GamePage() {
     setSelectedAnswer(answer);
   };
 
+  const calculateMultipleChoiceScore = () => {
+    if (timeExpired) {
+      return 0;
+    }
+
+    return time;
+  };
+
+  const calculateNumericalScore = (answer: string) => {
+    if (!question || question.correctNumber === null) return 0;
+
+    const correctAnswer = question.correctNumber;
+    const userAnswerValue = parseFloat(answer);
+
+    if (isNaN(userAnswerValue)) return 0;
+
+    const zScore = Math.abs(correctAnswer - userAnswerValue);
+
+    setUserAnswer({
+      userId: getSession().id,
+      answer: answer,
+      zScore: zScore,
+      timestamp: Date.now(),
+    });
+
+    return zScore;
+  };
+
   const handleSubmitAnswer = () => {
     if (!question) return;
 
-    let isCorrect = false;
+    let score = 0;
     if (question.questionType === 'multipleChoice') {
-      isCorrect = selectedAnswer === question.correctAnswer;
+      const isCorrect = selectedAnswer === question.correctAnswer;
+      score = isCorrect ? calculateMultipleChoiceScore() : 0;
     } else if (question.questionType === 'numerical') {
-      isCorrect = question.correctNumber !== null && parseFloat(selectedAnswer) === question.correctNumber;
+      score = calculateNumericalScore(selectedAnswer);
     }
 
-    if (isCorrect) {
-      setCorrectAnswers(prevCount => prevCount + 1);
-    }
-
-    handleNextQuestion();
+    submitAnswer(score);
   };
+
+  const submitAnswer = async (score: number) => {
+    if (!question) return;
+
+    if (question.questionType === 'numerical') {
+      setTimeExpired(true);
+      setNumericalAnswers(prevAnswers => {
+        const newAnswers = [...prevAnswers, userAnswer];
+        console.log(newAnswers);
+        return newAnswers;
+      });
+    } else {
+      handleNextQuestion();
+    }
+  };
+
+  useEffect(() => {
+    if (timeExpired && question?.questionType === 'numerical' && numericalAnswers.length > 0) {
+      const sortedAnswers = [...numericalAnswers].sort((a, b) => {
+        if (a.zScore !== b.zScore) {
+          return (a.zScore || 0) - (b.zScore || 0);
+        }
+        return a.timestamp - b.timestamp;
+      });
+
+      const newRanking = sortedAnswers.map((answer, index) => ({
+        userId: answer.userId,
+        score: (sortedAnswers.length - index) * 2,
+        timestamp: answer.timestamp,
+      }));
+
+      setRanking(newRanking);
+      handleNextQuestion();
+    }
+  }, [timeExpired, numericalAnswers, question]);
 
   const handleNextQuestion = () => {
     setSelectedAnswer('');
     setTime(gameSession?.timePerQuestionInSec || 0);
     setTimeExpired(false);
+    setUserAnswer(null);
+    setNumericalAnswers([]);
+
     setCurrentQuestionIndex(prevIndex => {
       const nextIndex = prevIndex + 1;
       if (nextIndex < questions.length) {
