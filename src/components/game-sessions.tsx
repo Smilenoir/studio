@@ -21,6 +21,17 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+
 interface GameSession {
   id: string;
   name: string;
@@ -192,6 +203,10 @@ export const GameSessions = () => {
     setSessions(updatedSessions);
   };
 
+    const getGroupName = (groupId: string) => {
+        return availableGroups.find(group => group.id === groupId)?.name || 'Unknown Group';
+    };
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       {/* Session Creation Form */}
@@ -259,48 +274,65 @@ export const GameSessions = () => {
         </CardContent>
       </Card>
 
-      {/* Session List (Placeholder) */}
+      {/* Session List */}
       <Card className="w-full max-w-lg">
         <CardHeader>
           <CardTitle>Existing Sessions</CardTitle>
           <CardDescription>Manage existing game sessions.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div>
-            {sessions.length === 0 ? (
-              <div>No sessions created yet.</div>
-            ) : (
-              <ul>
-                {sessions.map(session => (
-                  <li key={session.id}>
-                    {session.name} (Max Players: {session.maxPlayers}, Group: {availableGroups.find(group => group.id === session.questionGroupId)?.name}, Status: {session.status})
-                    <Button size="sm" onClick={() => startEditing(session.id)}>Edit</Button>
-                    <Button size="sm" onClick={() => restartSession(session.id)}>Restart</Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive">Delete</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the session and remove its data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteSession()}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Max Players</TableHead>
+                        <TableHead>Question Group</TableHead>
+                        <TableHead>Time per Question</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sessions.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center">No sessions created yet.</TableCell>
+                        </TableRow>
+                    ) : (
+                        sessions.map(session => (
+                            <TableRow key={session.id}>
+                                <TableCell>{session.name}</TableCell>
+                                <TableCell>{session.maxPlayers}</TableCell>
+                                <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
+                                <TableCell>{session.timePerQuestion === 0 ? '∞' : session.timePerQuestion}</TableCell>
+                                <TableCell>{session.status}</TableCell>
+                                <TableCell>
+                                    <Button size="sm" onClick={() => startEditing(session.id)}>Edit</Button>
+                                    <Button size="sm" onClick={() => restartSession(session.id)}>Restart</Button>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button size="sm" variant="destructive">Delete</Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This action cannot be undone. This will permanently delete the session and remove its data.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => deleteSession()}>Continue</AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
+                </TableBody>
+            </Table>
         </CardContent>
       </Card>
     </div>
   );
 };
-
