@@ -4,6 +4,7 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {QuestionEditor} from '@/components/question-editor';
 import {Dashboard} from '@/components/dashboard';
 import {GroupEditor} from '@/components/group-editor';
+import {GameSessions} from "@/components/game-sessions";
 
 export default function AdminPage() {
   return (
@@ -14,6 +15,7 @@ export default function AdminPage() {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="questions">Question Editor</TabsTrigger>
           <TabsTrigger value="groups">Group Editor</TabsTrigger>
+          <TabsTrigger value="sessions">Game Sessions</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="mt-4">
           <Dashboard />
@@ -23,6 +25,9 @@ export default function AdminPage() {
         </TabsContent>
         <TabsContent value="groups" className="mt-4">
           <GroupEditor />
+        </TabsContent>
+        <TabsContent value="sessions" className="mt-4">
+          <GameSessions />
         </TabsContent>
       </Tabs>
     </div>
