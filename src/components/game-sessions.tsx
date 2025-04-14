@@ -16,8 +16,8 @@ interface GameSession {
   maxPlayers: number;
   questionGroupId: string;
   timePerQuestion?: number;
-  joinedPlayers: number; // Добавлено: количество подключенных игроков
-  status: 'active' | 'waiting' | 'finished'; // Добавлено: статус игры
+  joinedPlayers: number;
+  status: 'active' | 'waiting' | 'finished';
 }
 
 interface Group {
@@ -29,7 +29,6 @@ const GAME_SESSIONS_STORAGE_KEY = 'gameSessions';
 
 export const GameSessions = () => {
   const [sessions, setSessions] = useState<GameSession[]>(() => {
-    // Initialize from local storage
     if (typeof window !== 'undefined') {
       const storedSessions = localStorage.getItem(GAME_SESSIONS_STORAGE_KEY);
       return storedSessions ? JSON.parse(storedSessions) : [];
@@ -45,12 +44,12 @@ export const GameSessions = () => {
   const [sessionNameError, setSessionNameError] = useState<string | null>(null);
   const {toast} = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchGroups();
   }, []);
 
-  // Save sessions to local storage whenever it changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(GAME_SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
@@ -111,8 +110,8 @@ export const GameSessions = () => {
       maxPlayers: newSession.maxPlayers,
       questionGroupId: newSession.questionGroupId,
       timePerQuestion: newSession.timePerQuestion,
-      joinedPlayers: 0, // Initial value for joined players
-      status: 'waiting', // Initial status
+      joinedPlayers: 0,
+      status: 'waiting',
     };
     setSessions([...sessions, sessionToAdd]);
     setNewSession({
@@ -124,6 +123,60 @@ export const GameSessions = () => {
     toast({
       title: "Success",
       description: "Session added successfully."
+    });
+  };
+
+  const startEditingSession = (session: GameSession) => {
+    setEditingSessionId(session.id);
+    setNewSession({
+      name: session.name,
+      maxPlayers: session.maxPlayers,
+      questionGroupId: session.questionGroupId,
+      timePerQuestion: session.timePerQuestion,
+    });
+  };
+
+  const updateSession = () => {
+    if (!editingSessionId) return;
+
+    const updatedSessions = sessions.map(session => {
+      if (session.id === editingSessionId) {
+        return {
+          ...session,
+          name: newSession.name,
+          maxPlayers: newSession.maxPlayers,
+          questionGroupId: newSession.questionGroupId,
+          timePerQuestion: newSession.timePerQuestion,
+        };
+      }
+      return session;
+    });
+
+    setSessions(updatedSessions);
+    setEditingSessionId(null);
+    setNewSession({
+      name: '',
+      maxPlayers: 10,
+      questionGroupId: '',
+      timePerQuestion: undefined,
+    });
+    toast({
+      title: "Success",
+      description: "Session updated successfully."
+    });
+  };
+
+  const restartSession = (sessionId: string) => {
+    const updatedSessions = sessions.map(session => {
+      if (session.id === sessionId) {
+        return {...session, status: 'waiting', joinedPlayers: 0};
+      }
+      return session;
+    });
+    setSessions(updatedSessions);
+    toast({
+      title: "Success",
+      description: "Session restarted successfully."
     });
   };
 
@@ -191,8 +244,8 @@ export const GameSessions = () => {
             />
           </div>
 
-          <Button type="button" onClick={addSession}>
-            Create Session
+          <Button type="button" onClick={editingSessionId ? updateSession : addSession}>
+            {editingSessionId ? 'Update Session' : 'Create Session'}
           </Button>
         </CardContent>
       </Card>
@@ -217,7 +270,8 @@ export const GameSessions = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex gap-2">
-                    <Button size="sm">Start</Button>
+                    <Button size="sm" onClick={() => startEditingSession(session)}>Edit</Button>
+                    <Button size="sm" onClick={() => restartSession(session.id)}>Restart</Button>
                     <Button size="sm" variant="destructive">Delete</Button>
                   </CardContent>
                 </Card>
