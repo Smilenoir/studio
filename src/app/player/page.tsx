@@ -164,17 +164,21 @@ export default function PlayerPage() {
       if (userError) throw userError;
 
       if (!user) {
-        setAlertTitle("Error");
-        setAlertDescription("User not found");
-        setAlertOpen(true);
+          toast({
+              title: "Error",
+              description: "User not found",
+              variant: "destructive"
+          });
         return;
       }
 
 
       if (password !== user.password){
-          setAlertTitle("Error");
-          setAlertDescription("Invalid credentials");
-          setAlertOpen(true);
+          toast({
+              title: "Error",
+              description: "Invalid credentials",
+              variant: "destructive"
+          });
           return;
       }
 
@@ -186,15 +190,13 @@ export default function PlayerPage() {
       setSession(userSession);
       await saveSession(userSession);
 
-      // setAlertTitle("Success");
-      // setAlertDescription("Signed in successfully!");
-      // setAlertOpen(true);
        toast({
                 title: "Success",
                 description: "Signed in successfully!"
             });
 
 
+       setAlertOpen(false);
     } catch (error: any) {
         setAlertTitle("Error");
         setAlertDescription(error.message);
@@ -406,5 +408,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
