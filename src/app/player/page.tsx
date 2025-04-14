@@ -42,15 +42,22 @@ export default function PlayerPage() {
 
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-    })
+    // supabase.auth.getSession().then(({ data: { session } }) => {
+    //   setSession(session)
+    // })
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
+    // supabase.auth.onAuthStateChange((_event, session) => {
+    //   setSession(session)
+    // })
     fetchGameSessions();
+    loadSession();
   }, []);
+
+
+  const loadSession = async () => {
+    const currentSession = await supabase.auth.getSession();
+    setSession(currentSession.data.session);
+  }
 
 
   const fetchGameSessions = async () => {
@@ -115,7 +122,7 @@ export default function PlayerPage() {
       });
 
       if (signInError) throw signInError;
-
+      loadSession();
 
       toast({
         title: "Success",
@@ -140,6 +147,7 @@ export default function PlayerPage() {
         password,
       })
       if (error) throw error
+      loadSession();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -156,6 +164,7 @@ export default function PlayerPage() {
       setLoading(true)
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      setSession(null);
     } catch (error: any) {
       toast({
         variant: "destructive",
