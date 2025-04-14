@@ -133,7 +133,7 @@ export default function PlayerPage() {
   }
 
   async function handleSignIn() {
-    try {
+   try {
       setLoading(true)
       // Find the user by nickname
       const { data: user, error: userError } = await supabase
@@ -167,16 +167,16 @@ export default function PlayerPage() {
           return;
       }
 
-
+      // Sign in the user using existing credentials
       const { data, error } = await supabase.auth.signInWithPassword({
         email: user.nickname + '@example.com',
         password: password,
-      })
+      });
 
       if (error) {
-         setAlertTitle("Error");
-         setAlertDescription(error.error_description || error.message);
-         setAlertOpen(true);
+        setAlertTitle("Error");
+        setAlertDescription(error.error_description || error.message);
+        setAlertOpen(true);
         return;
       }
 

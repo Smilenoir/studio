@@ -36,7 +36,7 @@ interface User {
 export const Users = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [open, setOpen] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [deletingUserNickname, setDeletingUserNickname] = useState<string | null>(null);
   const {toast} = useToast();
 
   useEffect(() => {
@@ -68,15 +68,15 @@ export const Users = () => {
     }
   };
 
-  const confirmDeleteUser = (id: string) => {
-    setDeletingUserId(id);
+  const confirmDeleteUser = (nickname: string) => {
+    setDeletingUserNickname(nickname);
     setOpen(true);
   };
 
   const deleteUser = async () => {
-    if (deletingUserId) {
+    if (deletingUserNickname) {
       try {
-        const {error} = await supabase.from('users').delete().eq('id', deletingUserId);
+        const {error} = await supabase.from('users').delete().eq('nickname', deletingUserNickname);
 
         if (error) {
           console.error('Error deleting user:', JSON.stringify(error));
@@ -88,7 +88,7 @@ export const Users = () => {
           return;
         }
 
-        const updatedUsers = users.filter(user => user.id !== deletingUserId);
+        const updatedUsers = users.filter(user => user.nickname !== deletingUserNickname);
         setUsers(updatedUsers);
         toast({
           title: "Success",
@@ -103,7 +103,7 @@ export const Users = () => {
         });
       } finally {
         setOpen(false);
-        setDeletingUserId(null);
+        setDeletingUserNickname(null);
       }
     }
   };
@@ -137,7 +137,7 @@ export const Users = () => {
                   <TableCell className="text-right">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive">Delete</Button>
+                        <Button size="sm" variant="destructive" onClick={() => confirmDeleteUser(user.nickname)}>Delete</Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
