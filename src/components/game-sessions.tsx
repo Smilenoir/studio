@@ -23,8 +23,17 @@ interface Group {
   name: string;
 }
 
+const GAME_SESSIONS_STORAGE_KEY = 'gameSessions';
+
 export const GameSessions = () => {
-  const [sessions, setSessions] = useState<GameSession[]>([]);
+  const [sessions, setSessions] = useState<GameSession[]>(() => {
+    // Initialize from local storage
+    if (typeof window !== 'undefined') {
+      const storedSessions = localStorage.getItem(GAME_SESSIONS_STORAGE_KEY);
+      return storedSessions ? JSON.parse(storedSessions) : [];
+    }
+    return [];
+  });
   const [newSession, setNewSession] = useState({
     name: '',
     maxPlayers: 10,
@@ -38,6 +47,13 @@ export const GameSessions = () => {
   useEffect(() => {
     fetchGroups();
   }, []);
+
+  // Save sessions to local storage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(GAME_SESSIONS_STORAGE_KEY, JSON.stringify(sessions));
+    }
+  }, [sessions]);
 
   const fetchGroups = async () => {
     try {
