@@ -33,7 +33,7 @@ interface GameSession {
 
 export default function PlayerPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -74,10 +74,16 @@ export default function PlayerPage() {
   async function handleSignUp() {
     try {
       setLoading(true)
-      const { error } = await supabase.auth.signUp({
-        email,
+      const { data, error } = await supabase.auth.signUp({
+        email: nickname + '@example.com',
         password,
+        options: {
+          data: {
+            nickname: nickname,
+          }
+        }
       })
+
       if (error) throw error
       toast({
         title: "Success",
@@ -98,7 +104,7 @@ export default function PlayerPage() {
     try {
       setLoading(true)
       const { error } = await supabase.auth.signInWithPassword({
-        email,
+        email: nickname + '@example.com',
         password,
       })
       if (error) throw error
@@ -166,13 +172,13 @@ export default function PlayerPage() {
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="nickname">Nickname</Label>
                 <Input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
+                  type="text"
+                  id="nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                  placeholder="Enter your nickname"
                 />
               </div>
               <div className="grid gap-2">
