@@ -109,7 +109,8 @@ export default function PlayerPage() {
 
       const { error: insertError } = await supabase
         .from('users')
-        .insert({ nickname, password: hashedPassword });
+        .insert({ nickname, password: hashedPassword })
+        .select();
 
       if (insertError) {
         throw insertError;
@@ -118,6 +119,9 @@ export default function PlayerPage() {
       setAlertTitle("Success");
       setAlertDescription('Account created successfully. You can now sign in.');
       setAlertOpen(true);
+
+      // Automatically sign in the user after successful registration
+      await handleSignIn();
 
 
     } catch (error) {
@@ -157,9 +161,25 @@ export default function PlayerPage() {
         return;
       }
 
+
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: user.nickname + '@example.com',
+        password: password,
+      })
+
+      if (error) {
+         setAlertTitle("Error");
+         setAlertDescription(error.error_description || error.message);
+         setAlertOpen(true);
+        return;
+      }
+
+
       setAlertTitle("Success");
       setAlertDescription("Signed in successfully!");
       setAlertOpen(true);
+
+      await loadSession();
 
     } catch (error: any) {
         setAlertTitle("Error");
