@@ -101,6 +101,18 @@ export default function PlayerPage() {
         try {
             setLoading(true);
 
+             if (!password) {
+                setAlertOpen(true);
+                setAlertTitle('Error');
+                setAlertDescription("Password cannot be empty. Please enter a password.");
+                toast({
+                    title: "Error",
+                    description: "Password cannot be empty. Please enter a password.",
+                    variant: "destructive"
+                });
+                return;
+            }
+
             // Check if nickname already exists
             const {data: existingUser, error: selectError} = await supabase
                 .from('users')
@@ -151,38 +163,10 @@ export default function PlayerPage() {
                 return;
             }
 
-
-             // Automatically sign in after successful account creation
-            const { data: user, error: userError } = await supabase
-                .from('users')
-                .select('*')
-                .eq('nickname', nickname)
-                .maybeSingle();
-
-            if (userError) {
-                toast({
-                    title: "Error",
-                    description: userError.message,
-                    variant: "destructive"
-                });
-                return;
-            }
-
-            if (user) {
-                const userSession: UserSession = {
-                    nickname: user.nickname,
-                    id: user.id,
-                };
-
-                setSession(userSession);
-                await saveSession(userSession);
-
-                toast({
-                    title: "Success",
-                    description: "Signed up and signed in successfully!"
-                });
-            }
-
+          toast({
+                        title: "Success",
+                        description: "User created successfully!"
+                    });
 
 
 
@@ -210,7 +194,18 @@ export default function PlayerPage() {
         .eq('nickname', nickname)
         .maybeSingle();
 
-      if (userError) throw userError;
+      if (userError) {
+                setAlertOpen(true);
+                setAlertTitle('Error');
+                setAlertDescription(userError.message);
+
+                toast({
+                    title: "Error",
+                    description: userError.message,
+                    variant: "destructive"
+                });
+          return;
+      }
 
       if (!user) {
           setAlertOpen(true);
@@ -403,7 +398,7 @@ export default function PlayerPage() {
       </div>
 
          <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
-            <AlertDialogContent>
+             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>{alertTitle}</AlertDialogTitle>
                 <AlertDialogDescription>
@@ -475,4 +470,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
