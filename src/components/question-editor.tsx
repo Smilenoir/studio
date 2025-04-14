@@ -10,6 +10,17 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {useToast} from "@/hooks/use-toast"
 import {supabase} from "@/lib/supabaseClient";
 import * as React from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Question {
   id: string;
@@ -45,6 +56,8 @@ export const QuestionEditor = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupError, setGroupError] = useState<string | null>(null);
   const [typeError, setTypeError] = useState<string | null>(null);
+  const [open, setOpen] = React.useState(false)
+  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -276,33 +289,43 @@ export const QuestionEditor = () => {
     }
   };
 
-  const deleteQuestion = async (id: string) => {
-    try {
-      const {error} = await supabase.from('questions').delete().eq('id', id);
+  const confirmDeleteQuestion = (id: string) => {
+    setDeletingQuestionId(id);
+    setOpen(true);
+  };
 
-      if (error) {
-        console.error('Error deleting question:', JSON.stringify(error));
+  const deleteQuestion = async () => {
+    if (deletingQuestionId) {
+      try {
+        const {error} = await supabase.from('questions').delete().eq('id', deletingQuestionId);
+
+        if (error) {
+          console.error('Error deleting question:', JSON.stringify(error));
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to add question."
+          });
+          return;
+        }
+
+        const updatedQuestions = questions.filter(q => q.id !== deletingQuestionId);
+        setQuestions(updatedQuestions);
+        toast({
+          title: "Success",
+          description: "Question deleted successfully."
+        });
+      } catch (error) {
+        console.error('Unexpected error deleting question:', JSON.stringify(error));
         toast({
           variant: "destructive",
           title: "Error",
           description: "Failed to add question."
         });
-        return;
+      } finally {
+        setOpen(false);
+        setDeletingQuestionId(null);
       }
-
-      const updatedQuestions = questions.filter(q => q.id !== id);
-      setQuestions(updatedQuestions);
-      toast({
-        title: "Success",
-        description: "Question deleted successfully."
-      });
-    } catch (error) {
-      console.error('Unexpected error deleting question:', JSON.stringify(error));
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to add question."
-      });
     }
   };
 
@@ -434,7 +457,23 @@ export const QuestionEditor = () => {
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <Button size="sm" onClick={() => startEditing(question.id)}>Edit</Button>
-                    <Button size="sm" variant="destructive" onClick={() => deleteQuestion(question.id)}>Delete</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="destructive">Delete</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the question and remove its data from our servers.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteQuestion()}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </CardContent>
                 </Card>
               ))}
