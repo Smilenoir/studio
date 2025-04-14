@@ -134,6 +134,8 @@ export const Dashboard = () => {
               <TableHead className="w-[200px]">Name</TableHead>
               <TableHead>Players</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Question Group</TableHead>
+              <TableHead>Created At</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -147,6 +149,8 @@ export const Dashboard = () => {
                   <TableCell>{session.sessionName}</TableCell>
                   <TableCell>{session.maxPlayers !== undefined ? `0/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
                   <TableCell>{session.status}</TableCell>
+                  <TableCell>{session.questionGroupId}</TableCell>
+                  <TableCell>{session.createdAt}</TableCell>
                 </TableRow>
               ))
             )}
@@ -156,3 +160,4 @@ export const Dashboard = () => {
     </div>
   );
 };
+
