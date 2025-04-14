@@ -13,12 +13,15 @@ export default function AdminPage() {
       <Tabs defaultValue="dashboard" className="w-full max-w-4xl">
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="sessions">Game Sessions</TabsTrigger>
           <TabsTrigger value="questions">Question Editor</TabsTrigger>
           <TabsTrigger value="groups">Group Editor</TabsTrigger>
-          <TabsTrigger value="sessions">Game Sessions</TabsTrigger>
         </TabsList>
         <TabsContent value="dashboard" className="mt-4">
           <Dashboard />
+        </TabsContent>
+        <TabsContent value="sessions" className="mt-4">
+          <GameSessions />
         </TabsContent>
         <TabsContent value="questions" className="mt-4">
           <QuestionEditor />
@@ -26,10 +29,8 @@ export default function AdminPage() {
         <TabsContent value="groups" className="mt-4">
           <GroupEditor />
         </TabsContent>
-        <TabsContent value="sessions" className="mt-4">
-          <GameSessions />
-        </TabsContent>
       </Tabs>
     </div>
   );
 }
+
