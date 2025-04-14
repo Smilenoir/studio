@@ -36,13 +36,20 @@ interface GameSession {
   status: 'waiting' | 'active' | 'finished';
 }
 
+interface Group {
+    id: string;
+    name: string;
+}
+
 export const Dashboard = () => {
   const [activeSessions, setActiveSessions] = useState<GameSession[]>([]);
+    const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
   const [open, setOpen] = useState(false);
     const {toast} = useToast();
 
   useEffect(() => {
     fetchSessions();
+      fetchGroups();
   }, []);
 
   const fetchSessions = async () => {
@@ -69,6 +76,31 @@ export const Dashboard = () => {
         })
     }
   };
+
+    const fetchGroups = async () => {
+        try {
+            const {data, error} = await supabase
+                .from('groups')
+                .select('*');
+            if (error) {
+                console.error('Error fetching groups:', JSON.stringify(error));
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to fetch groups."
+                })
+                return;
+            }
+            setAvailableGroups(data || []);
+        } catch (error) {
+            console.error('Unexpected error fetching groups:', JSON.stringify(error));
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Unexpected error fetching groups."
+            })
+        }
+    };
 
   const deleteAllSessions = async () => {
     try {
@@ -102,6 +134,10 @@ export const Dashboard = () => {
         })
     }
   };
+
+    const getGroupName = (groupId: string) => {
+        return availableGroups.find(group => group.id === groupId)?.name || 'Unknown Group';
+    };
 
   return (
     <div className="container mx-auto max-w-4xl">
@@ -149,7 +185,7 @@ export const Dashboard = () => {
                   <TableCell>{session.sessionName}</TableCell>
                   <TableCell>{session.maxPlayers !== undefined ? `0/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
                   <TableCell>{session.status}</TableCell>
-                  <TableCell>{session.questionGroupId}</TableCell>
+                  <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                   <TableCell>{session.createdAt}</TableCell>
                 </TableRow>
               ))
@@ -160,4 +196,5 @@ export const Dashboard = () => {
     </div>
   );
 };
+
 
