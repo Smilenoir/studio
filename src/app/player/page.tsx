@@ -151,14 +151,6 @@ export default function PlayerPage() {
         return;
       }
 
-      // Compare the entered password with the hashed password
-      // const isPasswordCorrect = await bcrypt.compare(password, user.password);
-      // if (!isPasswordCorrect) {
-      //   setAlertTitle("Error");
-      //   setAlertDescription("Invalid credentials");
-      //   setAlertOpen(true);
-      //   return;
-      // }
 
       if (password !== user.password){
           setAlertTitle("Error");
@@ -169,13 +161,18 @@ export default function PlayerPage() {
 
       // Sign in the user using existing credentials
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: user.nickname + '@example.com',
+        email: nickname + '@example.com',
         password: password,
       });
 
       if (error) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+              email: nickname + '@example.com',
+              password: password,
+          });
+
         setAlertTitle("Error");
-        setAlertDescription(error.error_description || error.message);
+        setAlertDescription(error.message);
         setAlertOpen(true);
         return;
       }
@@ -189,7 +186,7 @@ export default function PlayerPage() {
 
     } catch (error: any) {
         setAlertTitle("Error");
-        setAlertDescription(error.error_description || error.message);
+        setAlertDescription(error.message);
         setAlertOpen(true);
 
     } finally {
@@ -295,7 +292,9 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader>
               <CardTitle>Welcome!</CardTitle>
-              <CardDescription>Hello, {session?.user?.user_metadata?.nickname}! GL HF!</CardDescription>
+              <CardDescription>
+                Hello, {session?.user?.user_metadata?.nickname}! GL HF!
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Button
@@ -385,4 +384,3 @@ export default function PlayerPage() {
     </div>
   );
 }
-
