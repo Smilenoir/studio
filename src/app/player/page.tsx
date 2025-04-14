@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,34 +32,48 @@ interface GameSession {
   status: 'waiting' | 'active' | 'finished';
 }
 
+interface UserSession {
+    nickname: string | null;
+    id: string | null;
+}
+
+
 export default function PlayerPage() {
   const router = useRouter();
   const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<UserSession>({nickname: null, id: null});
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertDescription, setAlertDescription] = useState('');
 
 
   useEffect(() => {
-    // supabase.auth.getSession().then(({ data: { session } }) => {
-    //   setSession(session)
-    // })
-
-    // supabase.auth.onAuthStateChange((_event, session) => {
-    //   setSession(session)
-    // })
     fetchGameSessions();
     loadSession();
   }, []);
 
 
   const loadSession = async () => {
-    const currentSession = await supabase.auth.getSession();
-    setSession(currentSession.data.session);
+      // Load session from local storage
+      const storedSession = localStorage.getItem('userSession');
+      if (storedSession) {
+          setSession(JSON.parse(storedSession));
+      }
+  }
+
+
+  const saveSession = async (userSession: UserSession) => {
+      // Save session to local storage
+      localStorage.setItem('userSession', JSON.stringify(userSession));
+  }
+
+
+  const clearSession = async () => {
+      // Remove session from local storage
+      localStorage.removeItem('userSession');
   }
 
 
@@ -82,54 +95,54 @@ export default function PlayerPage() {
   };
 
 
-  async function handleSignUp() {
-    try {
-      setLoading(true);
+    async function handleSignUp() {
+        try {
+            setLoading(true);
 
-      // Check if nickname already exists
-      const { data: existingUser, error: selectError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('nickname', nickname)
-        .maybeSingle();
+            // Check if nickname already exists
+            const {data: existingUser, error: selectError} = await supabase
+                .from('users')
+                .select('*')
+                .eq('nickname', nickname)
+                .maybeSingle();
 
-      if (selectError) {
-        throw selectError;
-      }
+            if (selectError) {
+                throw selectError;
+            }
 
-      if (existingUser) {
-        setAlertTitle("Error");
-        setAlertDescription("Nickname already exists. Please choose a different one.");
-        setAlertOpen(true);
-        return;
-      }
-
-
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({ nickname, password })
-        .select();
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      setAlertTitle("Success");
-      setAlertDescription('Account created successfully. You can now sign in.');
-      setAlertOpen(true);
-
-      // Automatically sign in the user after successful registration
-      //await handleSignIn();
+            if (existingUser) {
+                setAlertTitle("Error");
+                setAlertDescription("Nickname already exists. Please choose a different one.");
+                setAlertOpen(true);
+                return;
+            }
 
 
-    } catch (error) {
-       setAlertTitle("Error");
-       setAlertDescription(error.error_description || error.message);
-       setAlertOpen(true);
-    } finally {
-      setLoading(false);
+            const {error: insertError} = await supabase
+                .from('users')
+                .insert({nickname, password})
+                .select();
+
+            if (insertError) {
+                throw insertError;
+            }
+
+            setAlertTitle("Success");
+            setAlertDescription('Account created successfully. You can now sign in.');
+            setAlertOpen(true);
+
+            // Automatically sign in the user after successful registration
+            //await handleSignIn();
+
+
+        } catch (error) {
+            setAlertTitle("Error");
+            setAlertDescription(error.error_description || error.message);
+            setAlertOpen(true);
+        } finally {
+            setLoading(false);
+        }
     }
-  }
 
   async function handleSignIn() {
    try {
@@ -158,30 +171,19 @@ export default function PlayerPage() {
           return;
       }
 
-      // Sign in the user using existing credentials
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: nickname + '@example.com',
-        password: password,
-      });
 
-      if (error) {
-          const { data, error } = await supabase.auth.signInWithPassword({
-              email: nickname + '@example.com',
-              password: password,
-          });
+        const userSession: UserSession = {
+            nickname: user.nickname,
+            id: user.id,
+        };
 
-        setAlertTitle("Error");
-        setAlertDescription(error.message);
-        setAlertOpen(true);
-        return;
-      }
-
+      setSession(userSession);
+      await saveSession(userSession);
 
       setAlertTitle("Success");
       setAlertDescription("Signed in successfully!");
       setAlertOpen(true);
 
-      await loadSession();
 
     } catch (error: any) {
         setAlertTitle("Error");
@@ -196,9 +198,8 @@ export default function PlayerPage() {
   async function handleSignOut() {
     try {
       setLoading(true)
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      setSession(null);
+        await clearSession();
+      setSession({nickname: null, id: null});
     } catch (error: any) {
         setAlertTitle("Error");
         setAlertDescription(error.error_description || error.message);
@@ -237,7 +238,7 @@ export default function PlayerPage() {
       <h1 className="text-3xl font-bold mb-4">Player Page</h1>
 
       <div className="w-full max-w-md">
-        {!session ? (
+        {!session.nickname ? (
           <Card className="border">
             <CardHeader>
               <CardDescription>Sign in or create an account to join the game.</CardDescription>
@@ -292,7 +293,7 @@ export default function PlayerPage() {
             <CardHeader>
               <CardTitle>Welcome!</CardTitle>
               <CardDescription>
-                Hello, {session?.user?.user_metadata?.nickname}! GL HF!
+                Hello, {session?.nickname}! GL HF!
               </CardDescription>
             </CardHeader>
             <CardContent>
