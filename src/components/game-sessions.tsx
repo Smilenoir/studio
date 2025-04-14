@@ -23,11 +23,11 @@ import {
 
 interface GameSession {
   id: string;
-  name: string;
+  sessionName: string;
   maxPlayers: number;
   questionGroupId: string;
-  timePerQuestion?: number;
-  joinedPlayers: number;
+  timePerQuestionInSec: number;
+  createdAt: string;
   status: 'waiting' | 'active' | 'finished';
 }
 
@@ -39,10 +39,10 @@ interface Group {
 export const GameSessions = () => {
   const [sessions, setSessions] = useState<GameSession[]>([]);
   const [newSession, setNewSession] = useState({
-    name: '',
+    sessionName: '',
     maxPlayers: 5,
     questionGroupId: '',
-    timePerQuestion: 0,
+    timePerQuestionInSec: 0,
   });
 
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
@@ -53,19 +53,35 @@ export const GameSessions = () => {
 
   useEffect(() => {
     fetchGroups();
-    loadSessionsFromLocalStorage();
+    fetchSessions();
   }, []);
 
-  const loadSessionsFromLocalStorage = () => {
-    const storedSessions = localStorage.getItem('gameSessions');
-    if (storedSessions) {
-      setSessions(JSON.parse(storedSessions));
-    }
-  };
 
-  useEffect(() => {
-    localStorage.setItem('gameSessions', JSON.stringify(sessions));
-  }, [sessions]);
+    const fetchSessions = async () => {
+        try {
+            const {data, error} = await supabase
+                .from('game_sessions')
+                .select('*');
+            if (error) {
+                console.error('Error fetching game sessions:', JSON.stringify(error));
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to fetch game sessions."
+                })
+                return;
+            }
+            setSessions(data || []);
+        } catch (error) {
+            console.error('Unexpected error fetching game sessions:', JSON.stringify(error));
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Unexpected error fetching game sessions."
+            })
+        }
+    };
+
 
   const fetchGroups = async () => {
     try {
@@ -102,72 +118,130 @@ export const GameSessions = () => {
   };
 
     const handleTimeSliderChange = (value: number[]) => {
-        setNewSession({...newSession, timePerQuestion: value[0]});
+        setNewSession({...newSession, timePerQuestionInSec: value[0]});
     };
 
   const handleSelectChange = (value: string) => {
     setNewSession({...newSession, questionGroupId: value});
   };
 
-  const addSession = () => {
-    if (newSession.name.trim() === '') {
+  const addSession = async () => {
+    if (newSession.sessionName.trim() === '') {
       alert('Session name cannot be empty.');
       return;
     }
 
     const newId = Math.random().toString(36).substring(2, 15);
-    const sessionToAdd: GameSession = {
+    const now = new Date().toISOString();
+
+    const sessionToAdd = {
       id: newId,
-      name: newSession.name,
+      sessionName: newSession.sessionName,
       maxPlayers: newSession.maxPlayers,
       questionGroupId: newSession.questionGroupId,
-      timePerQuestion: newSession.timePerQuestion,
-      joinedPlayers: 0,
+      timePerQuestionInSec: newSession.timePerQuestionInSec,
+      createdAt: now,
       status: 'waiting',
     };
 
-    setSessions([...sessions, sessionToAdd]);
+      try {
+          const {error} = await supabase
+              .from('game_sessions')
+              .insert([sessionToAdd])
+              .select();
 
-    setNewSession({
-      name: '',
-      maxPlayers: 5,
-      questionGroupId: '',
-      timePerQuestion: 0,
-    });
+          if (error) {
+              console.error('Error adding session:', JSON.stringify(error));
+              toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: "Failed to add session."
+              });
+              return;
+          }
+
+          setSessions([...sessions, sessionToAdd]);
+          setNewSession({
+              sessionName: '',
+              maxPlayers: 5,
+              questionGroupId: '',
+              timePerQuestionInSec: 0,
+          });
+          toast({
+              title: "Success",
+              description: "Session added successfully."
+          });
+      } catch (error) {
+          console.error('Unexpected error adding session:', JSON.stringify(error));
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to add session."
+          });
+      }
   };
 
   const startEditing = (id: string) => {
     const sessionToEdit = sessions.find(session => session.id === id);
     if (sessionToEdit) {
       setNewSession({
-        name: sessionToEdit.name,
+        sessionName: sessionToEdit.sessionName,
         maxPlayers: sessionToEdit.maxPlayers,
         questionGroupId: sessionToEdit.questionGroupId,
-        timePerQuestion: sessionToEdit.timePerQuestion,
+        timePerQuestionInSec: sessionToEdit.timePerQuestionInSec,
       });
       setEditingSessionId(id);
     }
   };
 
-  const updateSession = () => {
+  const updateSession = async () => {
     if (editingSessionId) {
-      const updatedSessions = sessions.map(session =>
-        session.id === editingSessionId ? {
-          ...session,
-          name: newSession.name,
-          maxPlayers: newSession.maxPlayers,
-          questionGroupId: newSession.questionGroupId,
-          timePerQuestion: newSession.timePerQuestion,
-        } : session
-      );
-      setSessions(updatedSessions);
-      setEditingSessionId(null);
-      setNewSession({
-        name: '',
-        maxPlayers: 5,
-        questionGroupId: '',
-        timePerQuestion: 0,
-      });
+      const updatedSession = {
+        sessionName: newSession.sessionName,
+        maxPlayers: newSession.maxPlayers,
+        questionGroupId: newSession.questionGroupId,
+        timePerQuestionInSec: newSession.timePerQuestionInSec,
+      };
+        try {
+            const {error} = await supabase
+                .from('game_sessions')
+                .update(updatedSession)
+                .eq('id', editingSessionId)
+                .select();
+
+            if (error) {
+                console.error('Error updating session:', JSON.stringify(error));
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to update session."
+                });
+                return;
+            }
+
+            const updatedSessions = sessions.map(session =>
+                session.id === editingSessionId ? {...session, ...updatedSession} : session
+            );
+            setSessions(updatedSessions);
+            setEditingSessionId(null);
+            setNewSession({
+                sessionName: '',
+                maxPlayers: 5,
+                questionGroupId: '',
+                timePerQuestionInSec: 0,
+            });
+            toast({
+                title: "Success",
+                description: "Session updated successfully."
+            });
+        } catch (error) {
+            console.error('Unexpected error updating session:', JSON.stringify(error));
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to update session."
+            });
+        }
     }
   };
 
@@ -176,20 +250,75 @@ export const GameSessions = () => {
     setOpen(true);
   };
 
-  const deleteSession = () => {
+  const deleteSession = async () => {
     if (deletingSessionId) {
-      const updatedSessions = sessions.filter(session => session.id !== deletingSessionId);
-      setSessions(updatedSessions);
-      setOpen(false);
-      setDeletingSessionId(null);
-    }
+        try {
+            const {error} = await supabase.from('game_sessions').delete().eq('id', deletingSessionId);
+
+            if (error) {
+                console.error('Error deleting session:', JSON.stringify(error));
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to delete session."
+                });
+                return;
+            }
+
+            const updatedSessions = sessions.filter(session => session.id !== deletingSessionId);
+            setSessions(updatedSessions);
+            toast({
+                title: "Success",
+                description: "Session deleted successfully."
+            });
+        } catch (error) {
+            console.error('Unexpected error deleting session:', JSON.stringify(error));
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Failed to delete session."
+            });
+        } finally {
+            setOpen(false);
+            setDeletingSessionId(null);
+        }
+    };
   };
 
-  const restartSession = (id: string) => {
-    const updatedSessions = sessions.map(session =>
-      session.id === id ? {...session, joinedPlayers: 0, status: 'waiting'} : session
-    );
-    setSessions(updatedSessions);
+  const restartSession = async (id: string) => {
+      try {
+          const {error} = await supabase
+              .from('game_sessions')
+              .update({status: 'waiting'})
+              .eq('id', id)
+              .select();
+
+          if (error) {
+              console.error('Error restarting session:', JSON.stringify(error));
+              toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: "Failed to restart session."
+              });
+              return;
+          }
+
+          const updatedSessions = sessions.map(session =>
+              session.id === id ? {...session, status: 'waiting'} : session
+          );
+          setSessions(updatedSessions);
+          toast({
+              title: "Success",
+              description: "Session restarted successfully."
+          });
+      } catch (error) {
+          console.error('Unexpected error restarting session:', JSON.stringify(error));
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "Failed to restart session."
+          });
+      }
   };
 
     const getGroupName = (groupId: string) => {
@@ -210,8 +339,8 @@ export const GameSessions = () => {
             <Input
               type="text"
               id="sessionName"
-              name="name"
-              value={newSession.name}
+              name="sessionName"
+              value={newSession.sessionName}
               onChange={handleInputChange}
               placeholder="Enter session name"
             />
@@ -247,7 +376,7 @@ export const GameSessions = () => {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="timePerQuestion">Time per Question (seconds) ({newSession.timePerQuestion === 0 ? '∞' : newSession.timePerQuestion})</Label>
+            <Label htmlFor="timePerQuestionInSec">Time per Question (seconds) ({newSession.timePerQuestionInSec === 0 ? '∞' : newSession.timePerQuestionInSec})</Label>
             <Slider
                 defaultValue={[0]}
                 max={60}
@@ -277,14 +406,14 @@ export const GameSessions = () => {
               {sessions.map(session => (
                 <Card key={session.id}>
                   <CardHeader>
-                    <CardTitle>{session.name}</CardTitle>
+                    <CardTitle>{session.sessionName}</CardTitle>
                     <CardDescription>
-                      Players: {session.joinedPlayers !== undefined ? `${session.joinedPlayers}/${session.maxPlayers}` : `0/${session.maxPlayers}`}
+                      Players: {`${0}/${session.maxPlayers}`}
                     </CardDescription>
                     <CardDescription>Status: {session.status}</CardDescription>
                     <CardDescription>Question Group: {getGroupName(session.questionGroupId)}</CardDescription>
                     <CardDescription>
-                        Time per Question: {session.timePerQuestion === 0 ? '∞' : session.timePerQuestion} seconds
+                        Time per Question: {session.timePerQuestionInSec === 0 ? '∞' : session.timePerQuestionInSec} seconds
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex gap-2">
