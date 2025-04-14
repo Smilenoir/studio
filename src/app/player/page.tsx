@@ -109,13 +109,11 @@ export default function PlayerPage() {
                 .maybeSingle();
 
             if (selectError) {
-                throw selectError;
-            }
-
-            if (existingUser) {
-                setAlertTitle("Error");
-                setAlertDescription("Nickname already exists. Please choose a different one.");
-                setAlertOpen(true);
+                 toast({
+                        title: "Error",
+                        description: "Nickname already exists. Please choose a different one.",
+                        variant: "destructive"
+                    });
                 return;
             }
 
@@ -129,23 +127,18 @@ export default function PlayerPage() {
                 throw insertError;
             }
 
-            const userSession: UserSession = {
-                nickname: nickname,
-                id: nickname,
-            };
-
-            //setSession(userSession);
-            //await saveSession(userSession);
-
-            setAlertTitle("Success");
-            setAlertDescription('Account created successfully. You can sign in now.');
-            setAlertOpen(true);
+           toast({
+                        title: "Success",
+                        description: 'Account created successfully. You can sign in now.',
+                    });
 
 
         } catch (error) {
-            setAlertTitle("Error");
-            setAlertDescription(error.error_description || error.message);
-            setAlertOpen(true);
+              toast({
+                        title: "Error",
+                        description: error.error_description || error.message,
+                         variant: "destructive"
+                    });
         } finally {
             setLoading(false);
         }
@@ -196,11 +189,15 @@ export default function PlayerPage() {
             });
 
 
+
+
        setAlertOpen(false);
     } catch (error: any) {
-        setAlertTitle("Error");
-        setAlertDescription(error.message);
-        setAlertOpen(true);
+        toast({
+                        title: "Error",
+                        description: error.message,
+                         variant: "destructive"
+                    });
 
     } finally {
       setLoading(false)
@@ -217,9 +214,11 @@ export default function PlayerPage() {
               description: "Signed out successfully!"
           });
     } catch (error: any) {
-        setAlertTitle("Error");
-        setAlertDescription(error.error_description || error.message);
-        setAlertOpen(true);
+         toast({
+                        title: "Error",
+                        description: error.error_description || error.message,
+                         variant: "destructive"
+                    });
     } finally {
       setLoading(false)
     }
@@ -298,6 +297,11 @@ export default function PlayerPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                handleSignIn();
+                                            }
+                                        }}
                   />
                 </div>
               </div>
@@ -408,4 +412,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
