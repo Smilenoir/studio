@@ -42,7 +42,7 @@ export const GameSessions = () => {
     name: '',
     maxPlayers: 5,
     questionGroupId: '',
-    timePerQuestion: undefined,
+    timePerQuestion: 0,
   });
 
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
@@ -91,6 +91,10 @@ export const GameSessions = () => {
     setNewSession({...newSession, maxPlayers: value[0]});
   };
 
+    const handleTimeSliderChange = (value: number[]) => {
+        setNewSession({...newSession, timePerQuestion: value[0]});
+    };
+
   const handleSelectChange = (value: string) => {
     setNewSession({...newSession, questionGroupId: value});
   };
@@ -98,12 +102,6 @@ export const GameSessions = () => {
   const addSession = () => {
     if (newSession.name.trim() === '') {
       alert('Session name cannot be empty.');
-      return;
-    }
-
-    // Basic time validation (accept non-negative numbers only)
-    if (newSession.timePerQuestion !== undefined && (isNaN(Number(newSession.timePerQuestion)) || Number(newSession.timePerQuestion) < 0)) {
-      alert('Time per question must be a non-negative number.');
       return;
     }
 
@@ -124,7 +122,7 @@ export const GameSessions = () => {
       name: '',
       maxPlayers: 5,
       questionGroupId: '',
-      timePerQuestion: undefined,
+      timePerQuestion: 0,
     });
   };
 
@@ -158,7 +156,7 @@ export const GameSessions = () => {
         name: '',
         maxPlayers: 5,
         questionGroupId: '',
-        timePerQuestion: undefined,
+        timePerQuestion: 0,
       });
     }
   };
@@ -235,14 +233,13 @@ export const GameSessions = () => {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="timePerQuestion">Time per Question (seconds)</Label>
-            <Input
-              type="number"
-              id="timePerQuestion"
-              name="timePerQuestion"
-              value={newSession.timePerQuestion !== undefined ? newSession.timePerQuestion.toString() : ''}
-              onChange={handleInputChange}
-              placeholder="Enter time per question"
+            <Label htmlFor="timePerQuestion">Time per Question (seconds) ({newSession.timePerQuestion})</Label>
+            <Slider
+                defaultValue={[0]}
+                max={60}
+                min={0}
+                step={1}
+                onValueChange={value => handleTimeSliderChange(value as number[])}
             />
           </div>
 
