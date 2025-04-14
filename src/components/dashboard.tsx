@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {supabase} from "@/lib/supabaseClient";
 import {useToast} from "@/hooks/use-toast";
+import {format} from 'date-fns';
 
 interface GameSession {
   id: string;
@@ -186,7 +187,7 @@ export const Dashboard = () => {
                   <TableCell>{session.maxPlayers !== undefined ? `0/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
                   <TableCell>{session.status}</TableCell>
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
-                  <TableCell>{session.createdAt}</TableCell>
+                  <TableCell>{format(new Date(session.createdAt), 'yyyy-MM-dd HH:mm')}</TableCell>
                 </TableRow>
               ))
             )}
@@ -196,5 +197,3 @@ export const Dashboard = () => {
     </div>
   );
 };
-
-

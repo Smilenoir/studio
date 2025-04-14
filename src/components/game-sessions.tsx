@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {format} from 'date-fns';
 
 interface GameSession {
   id: string;
@@ -446,4 +447,3 @@ export const GameSessions = () => {
     </div>
   );
 };
-
