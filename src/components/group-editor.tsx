@@ -286,8 +286,9 @@ export const GroupEditor = () => {
               {groups.map(group => (
                 <Card key={group.id}>
                   <CardHeader>
-                    <CardTitle>{group.name} ({group.questionCount} Questions)</CardTitle>
-                    <CardDescription>ID: {group.id}</CardDescription>
+                    <CardTitle>{group.name}</CardTitle>
+                    <CardDescription>{group.questionCount} Questions</CardDescription>
+                    {/*<CardDescription>ID: {group.id}</CardDescription>*/}
                   </CardHeader>
                   <CardContent className="flex gap-2">
                     <Button size="sm" onClick={() => startEditing(group.id)}>Edit</Button>
