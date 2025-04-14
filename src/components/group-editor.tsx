@@ -76,9 +76,10 @@ export const GroupEditor = () => {
     const newId = Math.random().toString(36).substring(2, 15);
 
     try {
-      const {error} = await supabase
+      const { error } = await supabase
         .from('groups')
-        .insert([{id: newId, name: newGroupName}]);
+        .insert([{ id: newId, name: newGroupName }])
+        .select();
 
       if (error) {
         console.error('Error adding group:', error);
@@ -140,7 +141,8 @@ export const GroupEditor = () => {
         const {error} = await supabase
           .from('groups')
           .update({name: newGroupName})
-          .eq('id', editingGroupId);
+          .eq('id', editingGroupId)
+            .select();
 
         if (error) {
           console.error('Error updating group:', error);
