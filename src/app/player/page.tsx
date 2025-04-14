@@ -18,6 +18,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/lib/supabaseClient";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
 
 interface GameSession {
   id: string;
@@ -31,12 +33,25 @@ interface GameSession {
 
 export default function PlayerPage() {
   const router = useRouter();
-  const [nickname, setNickname] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
+  const [session, setSession] = useState(null);
+
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
     fetchGameSessions();
   }, []);
+
 
   const fetchGameSessions = async () => {
     try {
@@ -54,6 +69,66 @@ export default function PlayerPage() {
       console.error('Unexpected error fetching game sessions:', error);
     }
   };
+
+
+  async function handleSignUp() {
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+      })
+      if (error) throw error
+      toast({
+        title: "Success",
+        description: "Check your email for confirmation link."
+      })
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.error_description || error.message,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSignIn() {
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (error) throw error
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.error_description || error.message,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleSignOut() {
+    try {
+      setLoading(true)
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.error_description || error.message,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
 
   // Dummy player data for demonstration
   const getPlayersInSession = (sessionId: string) => {
@@ -82,18 +157,78 @@ export default function PlayerPage() {
       </div>
       <h1 className="text-3xl font-bold mb-4">Player Page</h1>
 
-      {/* Nickname Input */}
-      <div className="mb-4">
-        <Input
-          type="text"
-          placeholder="Enter your nickname"
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-        />
+      <div className="w-full max-w-md">
+        {!session ? (
+          <Card className="border">
+            <CardHeader>
+              <CardTitle>Authentication</CardTitle>
+              <CardDescription>Sign in or create an account to join the game.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                />
+              </div>
+              <Button
+                className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+                onClick={() => {
+                  handleSignIn();
+                }}
+                disabled={loading}
+              >
+                Sign In
+              </Button>
+              <Button
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
+                onClick={() => {
+                  handleSignUp();
+                }}
+                disabled={loading}
+              >
+                Sign Up
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border">
+            <CardHeader>
+              <CardTitle>Welcome!</CardTitle>
+              <CardDescription>You are logged in.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"
+                onClick={() => {
+                  handleSignOut();
+                }}
+                disabled={loading}
+              >
+                Sign Out
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
+
       {/* Game Session List */}
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-4xl mt-8">
         <h2 className="text-2xl font-semibold mb-4">Available Game Sessions</h2>
         <div className="rounded-md border">
           <Table>
