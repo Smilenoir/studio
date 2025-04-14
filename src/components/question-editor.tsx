@@ -30,15 +30,15 @@ const generateId = (): string => {
 
 export const QuestionEditor = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [newQuestion, setNewQuestion]: any = useState<Omit<Question, 'id'>>({
+  const [newQuestion, setNewQuestion] = useState<Omit<Question, 'id'>>({
     group: '',
-    type: '',
+    type: 'multipleChoice',
     text: '',
-    options: [],
+    options: ['', '', '', ''],
     correctAnswer: '',
   });
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
-  const { toast } = useToast();
+  const {toast} = useToast();
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupError, setGroupError] = useState<string | null>(null);
   const [typeError, setTypeError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export const QuestionEditor = () => {
 
   const fetchQuestions = async () => {
     try {
-      const { data, error } = await supabase.from('questions').select('*');
+      const {data, error} = await supabase.from('questions').select('*');
       if (error) {
         console.error('Error fetching questions:', JSON.stringify(error));
         toast({
@@ -74,7 +74,7 @@ export const QuestionEditor = () => {
 
   const fetchGroups = async () => {
     try {
-      const { data, error } = await supabase.from('groups').select('*');
+      const {data, error} = await supabase.from('groups').select('*');
       if (error) {
         console.error('Error fetching groups:', JSON.stringify(error));
         toast({
@@ -116,6 +116,9 @@ export const QuestionEditor = () => {
     }
     if (name === 'type') {
       setTypeError(null); // Clear type error when a type is selected
+      if (name === 'type' && value === 'multipleChoice') {
+        setNewQuestion(prev => ({...prev, options: ['', '', '', '']}));
+      }
     }
   };
 
@@ -154,7 +157,7 @@ export const QuestionEditor = () => {
     const questionToAdd: Question = {id: newId, ...newQuestion};
 
     try {
-      const { error } = await supabase
+      const {error} = await supabase
         .from('questions')
         .insert([questionToAdd])
         .select();
@@ -170,7 +173,7 @@ export const QuestionEditor = () => {
       }
 
       setQuestions([...questions, questionToAdd]);
-      setNewQuestion({group: '', type: '', text: '', options: [], correctAnswer: ''});
+      setNewQuestion({group: '', type: 'multipleChoice', text: '', options: ['', '', '', ''], correctAnswer: ''});
       toast({
         title: "Success",
         description: "Question added successfully."
@@ -196,7 +199,7 @@ export const QuestionEditor = () => {
   const updateQuestion = async () => {
     if (editingQuestionId) {
       try {
-        const { error } = await supabase
+        const {error} = await supabase
           .from('questions')
           .update({...newQuestion})
           .eq('id', editingQuestionId)
@@ -217,7 +220,7 @@ export const QuestionEditor = () => {
         );
         setQuestions(updatedQuestions);
         setEditingQuestionId(null);
-        setNewQuestion({group: '', type: '', text: '', options: [], correctAnswer: ''});
+        setNewQuestion({group: '', type: 'multipleChoice', text: '', options: ['', '', '', ''], correctAnswer: ''});
         toast({
           title: "Success",
           description: "Question updated successfully."
@@ -235,7 +238,7 @@ export const QuestionEditor = () => {
 
   const deleteQuestion = async (id: string) => {
     try {
-      const { error } = await supabase.from('questions').delete().eq('id', id);
+      const {error} = await supabase.from('questions').delete().eq('id', id);
 
       if (error) {
         console.error('Error deleting question:', JSON.stringify(error));
@@ -261,10 +264,6 @@ export const QuestionEditor = () => {
         description: "Failed to delete question."
       });
     }
-  };
-
-  const addOption = () => {
-    setNewQuestion({...newQuestion, options: [...newQuestion.options, '']});
   };
 
   return (
@@ -333,7 +332,6 @@ export const QuestionEditor = () => {
                     placeholder={`Option ${index + 1}`}
                   />
                 ))}
-                <Button type="button" variant="secondary" onClick={addOption}>Add Option</Button>
               </div>
 
               <div className="grid gap-2">
