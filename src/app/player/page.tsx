@@ -202,44 +202,48 @@ export default function PlayerPage() {
               <CardDescription>Sign in or create an account to join the game.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="nickname">Nickname</Label>
-                <Input
-                  type="text"
-                  id="nickname"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="Enter your nickname"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2">
+                  <Label htmlFor="nickname">Nickname</Label>
+                  <Input
+                    type="text"
+                    id="nickname"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Enter your nickname"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    type="password"
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                  />
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  type="password"
-                  id="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                />
+              <div className="flex justify-between">
+                <Button
+                  className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+                  onClick={() => {
+                    handleSignIn();
+                  }}
+                  disabled={loading}
+                >
+                  Sign In
+                </Button>
+                <Button
+                  className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
+                  onClick={() => {
+                    handleSignUp();
+                  }}
+                  disabled={loading}
+                >
+                  Create
+                </Button>
               </div>
-              <Button
-                className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
-                onClick={() => {
-                  handleSignIn();
-                }}
-                disabled={loading}
-              >
-                Sign In
-              </Button>
-              <Button
-                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
-                onClick={() => {
-                  handleSignUp();
-                }}
-                disabled={loading}
-              >
-                Create
-              </Button>
             </CardContent>
           </Card>
         ) : (
