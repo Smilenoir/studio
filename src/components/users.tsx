@@ -25,19 +25,26 @@ import {
 import {supabase} from "@/lib/supabaseClient";
 import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface User {
   id: string;
   nickname: string;
   password?: string;
   created_at: string;
+  type: string;
 }
 
 export const Users = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [open, setOpen] = useState(false);
-  const [deletingUserNickname, setDeletingUserNickname] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const {toast} = useToast();
+
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editedUser, setEditedUser] = useState<Partial<User>>({});
+
 
   useEffect(() => {
     fetchUsers();
@@ -68,15 +75,15 @@ export const Users = () => {
     }
   };
 
-  const confirmDeleteUser = (nickname: string) => {
-    setDeletingUserNickname(nickname);
+  const confirmDeleteUser = (userId: string) => {
+    setDeletingUserId(userId);
     setOpen(true);
   };
 
   const deleteUser = async () => {
-    if (deletingUserNickname) {
+    if (deletingUserId) {
       try {
-        const {error} = await supabase.from('users').delete().eq('nickname', deletingUserNickname);
+        const {error} = await supabase.from('users').delete().eq('id', deletingUserId);
 
         if (error) {
           console.error('Error deleting user:', JSON.stringify(error));
@@ -88,7 +95,7 @@ export const Users = () => {
           return;
         }
 
-        const updatedUsers = users.filter(user => user.nickname !== deletingUserNickname);
+        const updatedUsers = users.filter(user => user.id !== deletingUserId);
         setUsers(updatedUsers);
         toast({
           title: "Success",
@@ -103,8 +110,71 @@ export const Users = () => {
         });
       } finally {
         setOpen(false);
-        setDeletingUserNickname(null);
+        setDeletingUserId(null);
       }
+    }
+  };
+
+  const startEditing = (user: User) => {
+    setEditingUserId(user.id);
+    setEditedUser({ ...user });
+  };
+
+  const cancelEditing = () => {
+    setEditingUserId(null);
+    setEditedUser({});
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditedUser(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (value: string, name: string) => {
+    setEditedUser(prev => ({ ...prev, [name]: value }));
+  };
+
+  const updateUser = async () => {
+    if (!editedUser || !editingUserId) return;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          password: editedUser.password,
+          type: editedUser.type,
+        })
+        .eq('id', editingUserId)
+        .select();
+
+      if (error) {
+        console.error('Error updating user:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update user.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const updatedUsers = users.map(user =>
+        user.id === editingUserId ? { ...user, ...editedUser } : user
+      );
+      setUsers(updatedUsers);
+      setEditingUserId(null);
+      setEditedUser({});
+      toast({
+        title: "Success",
+        description: "User updated successfully."
+      });
+
+    } catch (error) {
+      console.error("Unexpected error updating user:", error);
+      toast({
+        title: "Error",
+        description: "Unexpected error updating user.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -118,7 +188,8 @@ export const Users = () => {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[200px]">Nickname</TableHead>
-                <TableHead className="w-[200px]">Password</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Password</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -132,28 +203,65 @@ export const Users = () => {
               users.map(user => (
                 <TableRow key={user.id}>
                   <TableCell>{user.nickname}</TableCell>
-                    <TableCell>{user.password}</TableCell>
+                  <TableCell>
+                  {editingUserId === user.id ? (
+                      <Select onValueChange={(value) => handleSelectChange(value, 'type')} defaultValue={user.type}>
+                          <SelectTrigger id="type">
+                              <SelectValue placeholder="Select a type">{editedUser.type || user.type}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="player">Player</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                      </Select>
+                  ) : (
+                      user.type
+                  )}
+                  </TableCell>
+                  <TableCell>
+                    {editingUserId === user.id ? (
+                      <Input
+                        type="text"
+                        name="password"
+                        value={(editedUser.password === undefined ? user.password : editedUser.password) || ''}
+                        onChange={handleInputChange}
+                      />
+                    ) : (
+                      user.password
+                    )}
+                  </TableCell>
                   <TableCell>{format(new Date(user.created_at), 'yyyy-MM-dd HH:mm')}</TableCell>
                   <TableCell className="text-right">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive" onClick={() => confirmDeleteUser(user.nickname)}>Delete</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the user and remove their data from our servers.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => {
-                            deleteUser();
-                          }}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  {editingUserId === user.id ? (
+                      <>
+                          <Button size="sm" onClick={updateUser}>Update</Button>
+                          <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
+                      </>
+                  ) : (
+                      <>
+                          <Button size="sm" onClick={() => startEditing(user)}>Edit</Button>
+                          <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                  <Button size="sm" variant="destructive">Delete</Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                          This action cannot be undone. This will permanently delete the user and remove their data from our servers.
+                                      </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => {
+                                          confirmDeleteUser(user.id);
+                                          deleteUser();
+                                      }}>Continue</AlertDialogAction>
+                                  </AlertDialogFooter>
+                              </AlertDialogContent>
+                          </AlertDialog>
+                      </>
+                  )}
                   </TableCell>
                 </TableRow>
               ))
@@ -164,4 +272,3 @@ export const Users = () => {
     </div>
   );
 };
-

@@ -1,15 +1,12 @@
-'use client';
+'use client'
 
-import {useRouter} from "next/navigation";
-import {useEffect, useState, useRef} from "react";
+import { useRouter, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import {supabase} from "@/lib/supabaseClient";
 import {QuestionDisplay} from "@/components/question-display";
 import {AnswerInput} from "@/components/answer-input";
 import {ResultsDisplay} from "@/components/results-display";
 import {TimerDisplay} from "@/components/timer-display";
-import {useParams} from 'next/navigation';
-import {Button} from "@/components/ui/button";
-import {ArrowLeft} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -17,16 +14,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui/table"
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import {useToast} from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import {FunFactGenerator} from "@/components/fun-fact-generator";
+import { ArrowLeft } from "lucide-react";
 
 interface Question {
   id: string;
   groupId: string;
   questionType: 'multipleChoice' | 'numerical';
-  questionText: string;
   answers: string[];
   correctAnswer: string | null;
   correctNumber: number | null;
@@ -46,8 +44,9 @@ interface GameSession {
 
 interface UserSession {
   nickname: string | null;
-  id: string | null;
-}
+  id: string | null; 
+  type: string | null;
+};
 
 interface UserAnswer {
   userId: string;
@@ -56,35 +55,39 @@ interface UserAnswer {
   timestamp: number;
 }
 
+
 export default function GamePage() {
   const [question, setQuestion] = useState<Question | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [time, setTime] = useState(0);
-  const [gameSession, setGameSession] = useState<GameSession | null>(null);
-  const {sessionId} = useParams();
-  const router = useRouter();
   const [isTimed, setIsTimed] = useState(false);
   const [isObserver, setIsObserver] = useState(false); // New state for observer mode
   const [timeExpired, setTimeExpired] = useState(false);
   const [userAnswer, setUserAnswer] = useState<UserAnswer | null>(null);
+  const [gameSession, setGameSession] = useState<GameSession | null>(null);
+  const {gameId} = useParams();
+  const router = useRouter();
   const [numericalAnswers, setNumericalAnswers] = useState<UserAnswer[]>([]);
   const [overallRanking, setOverallRanking] = useState<{ userId: string; score: number; }[]>([]); // Overall ranking
   const [questionRanking, setQuestionRanking] = useState<{ userId: string; score: number; timestamp: number; }[]>([]); // Question ranking
   const session = JSON.parse(localStorage.getItem('userSession') || '{}');
+  const [sessionLoaded, setSessionLoaded] = useState(false);
   const [isNumericalAnswerSubmitted, setIsNumericalAnswerSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  const [sessionData, setSessionData] = useState<UserSession | null>(null);
+  const [userNicknames, setUserNicknames] = useState<{ [userId: string]: string }>({});
   const {toast} = useToast();
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!gameId) return;
 
     const fetchSessionAndQuestions = async () => {
       const {data: session, error: sessionError} = await supabase
         .from('game_sessions')
         .select('*')
-        .eq('id', sessionId)
+        .eq('id', gameId)
         .single();
 
       if (sessionError) {
@@ -120,7 +123,36 @@ export default function GamePage() {
     };
 
     fetchSessionAndQuestions();
-  }, [sessionId]);
+
+    const loadSession = async () => {
+      // ... your session loading logic ...
+      const userSession = session;
+      setSessionData(userSession);
+      setSessionLoaded(true);
+    };
+    loadSession();
+
+    // Example of redirecting if no session or handling different user types
+    if (!sessionData) {
+      router.push("/"); // Redirect to home if no session
+    }
+
+      const fetchUserNicknames = async (userIds: string[]) => {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, nickname')
+          .in('id', userIds);
+
+        if (error) {
+          console.error('Error fetching user nicknames:', error);
+          return;
+        }
+
+        const nicknames = data.reduce((acc, user) => ({ ...acc, [user.id]: user.nickname }), {});
+        setUserNicknames(nicknames);
+      };
+
+  }, [gameId]);
 
   useEffect(() => {
     if (gameSession && gameSession.status !== 'active') {
@@ -148,6 +180,16 @@ export default function GamePage() {
       return () => clearInterval(timerId);
     }
   }, [question, isTimed, gameSession]);
+
+    useEffect(() => {
+    // Collect unique user IDs from overallRanking and questionRanking
+    const userIds = new Set<string>();
+    overallRanking.forEach(user => userIds.add(user.userId));
+    questionRanking.forEach(user => userIds.add(user.userId));
+
+    // Fetch nicknames for these user IDs
+    fetchUserNicknames(Array.from(userIds));
+  }, [overallRanking, questionRanking]);
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer);
@@ -186,7 +228,7 @@ export default function GamePage() {
       const { error: updateError } = await supabase
         .from('game_sessions')
         .update({ question_index: nextIndex })
-        .eq('id', sessionId);
+        .eq('id', gameId);
 
       if (updateError) {
         console.error("Error updating question index:", updateError);
@@ -301,14 +343,14 @@ export default function GamePage() {
     try {
       const { data, error } = await supabase
         .from('game_sessions')
-        .select('players')
-        .eq('id', sessionId)
+        .select('players');
+        .eq('id', gameId)
         .single();
 
       if (error) {
         console.error('Error fetching game session:', error);
         return false;
-      }
+      };
 
       // Check if the admin is the only one in the session
       if (data && data.players && data.players.length === 1) {
@@ -319,18 +361,18 @@ export default function GamePage() {
     } catch (error) {
       console.error('Unexpected error fetching game session:', error);
       return false;
-    }
+    };
   };
 
   useEffect(() => {
     async function checkIfAdminObserver() {
       const observerStatus = await isAdminObserver();
       setIsObserver(observerStatus);
-    }
-
+    };
+    
     checkIfAdminObserver();
   }, [sessionId]);
-
+  
   const handleNextAdminQuestion = async () => {
     if (!sessionId) return;
 
@@ -343,7 +385,7 @@ export default function GamePage() {
         const { error: updateError } = await supabase
           .from('game_sessions')
           .update({ question_index: nextIndex })
-          .eq('id', sessionId);
+          .eq('id', gameId);
 
         if (updateError) {
           console.error("Error updating question index:", updateError);
@@ -365,7 +407,7 @@ export default function GamePage() {
       const { error: updateError } = await supabase
         .from('game_sessions')
         .update({ status: 'active' })
-        .eq('id', sessionId);
+        .eq('id', gameId);
 
       if (updateError) {
         console.error("Error starting game session:", updateError);
@@ -391,25 +433,48 @@ export default function GamePage() {
     }
   };
 
+  if (!sessionLoaded || !sessionData?.type) {
+    return <div>Loading or Invalid Session...</div>;
+  }
+
+  if (sessionData.type === 'admin') {
+    // Render admin-specific content using GamePageContent
+    return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={true}/>;
+  } else if (sessionData.type === 'player') {
+     // Render player-specific content using GamePageContent
+     return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={false}/>;
+    }
+
   return (
-    <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
-      <div className="absolute bottom-4 left-4">
+      <div>Something went wrong</div>
+  );
+}
+
+
+const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, isObserver, isAdmin }) => {
+  const router = useRouter();
+  const title = isAdmin ? "Admin Game Page" : "Player Game Page";
+    return (
+        <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
+            <div className="absolute top-4 left-4">
         <Button
           variant="outline"
           className="h-10 w-10 p-0 bg-black border-gray-500 text-white rounded-full"
-          onClick={() => router.push(isObserver ? '/admin' : '/player')}
+          onClick={() => router.push('/admin')}
         >
           <ArrowLeft
             className="h-6 w-6"
             aria-hidden="true"
           />
         </Button>
-      </div>
-      <h1 className="text-3xl font-bold mb-4">Game Page</h1>
-      {isTimed && question && <TimerDisplay time={time} />}
+            </div>
+          <h1 className="text-4xl font-bold mb-8 mt-10">{title}</h1>
+            <div className="mb-8">{isTimed && question && <TimerDisplay time={time}/>}</div>
 
-      <div className="flex w-full max-w-6xl justify-between">
-        {/* Overall Ranking Table */}
+
+      <div className="flex w-full max-w-6xl justify-between space-x-8 px-4">
+          {/* Overall Ranking Table */}
+
         <Card className="w-1/3">
           <CardHeader>
             <CardTitle>Overall Ranking</CardTitle>
@@ -419,13 +484,13 @@ export default function GamePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
-                  <TableHead>Score</TableHead>
-                </TableRow>
+                  <TableHead className="text-right">Score</TableHead>
+                </TableRow> 
               </TableHeader>
               <TableBody>
-                {overallRanking.sort((a, b) => b.score - a.score).map((user, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{user.userId}</TableCell>
+                {overallRanking.sort((a, b) => b.score - a.score).map((user) => (
+                  <TableRow key={user.userId}>
+                    <TableCell>{userNicknames[user.userId] || user.userId}</TableCell>
                     <TableCell>{user.score}</TableCell>
                   </TableRow>
                 ))}
@@ -434,10 +499,13 @@ export default function GamePage() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-col items-center w-1/3">
-          {/* Question Display */}
+          {/* Main Content Area */}
+          <div className="flex flex-col items-center w-1/3 space-y-4">
+              {/* Question Display */}
+
           {question ? (
             <>
+              <FunFactGenerator topics={[question.questionText]} />
               <QuestionDisplay question={question.questionText} />
               {question.questionType === 'multipleChoice' ? (
                 <>
@@ -459,7 +527,7 @@ export default function GamePage() {
                     placeholder="Enter your answer"
                     disabled={timeExpired}
                   />
-                  <button onClick={handleSubmitAnswer} disabled={timeExpired}>Submit Answer</button>
+                  <Button onClick={handleSubmitAnswer} disabled={timeExpired}>Submit Answer</Button>
                   {timeExpired && <div>Time's up!</div>}
                 </div>
               )}
@@ -467,17 +535,20 @@ export default function GamePage() {
           ) : (
             <ResultsDisplay results={results} />
           )}
-          {isObserver && (
-            <>
-              <Button onClick={handleNextAdminQuestion}>
-                Next Question
-              </Button>
-              {gameSession?.status !== 'active' &&
-                <Button onClick={handleStartGame}>
-                  Start Game
-                </Button>
-              }
-            </>
+              {isAdmin && (
+                  <div className="flex space-x-4 mt-4">
+                      {isObserver && (
+                          <Button onClick={handleNextAdminQuestion} variant="outline">
+                              Next Question
+                          </Button>
+                      )}
+                      {gameSession?.status !== 'active' &&
+                          <Button onClick={handleStartGame}>
+                              Start Game
+                          </Button>
+                      }
+                  </div>
+              )}
           )}
         </div>
 
@@ -492,15 +563,15 @@ export default function GamePage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
-                  <TableHead>Score</TableHead>
-                </TableRow>
+                  <TableHead className="text-right">Score</TableHead>
+                </TableRow> 
               </TableHeader>
               <TableBody>
-                {questionRanking.sort((a, b) => b.score - a.score).map((user, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{user.userId}</TableCell>
+                {questionRanking.sort((a, b) => b.score - a.score).map((user) => (
+                    <TableRow key={user.userId}>
+                    <TableCell>{userNicknames[user.userId] || user.userId}</TableCell>
                     <TableCell>{user.score}</TableCell>
-                  </TableRow>
+                  </TableRow> 
                 ))}
               </TableBody>
             </Table>
@@ -509,4 +580,5 @@ export default function GamePage() {
       </div>
     </div>
   );
-}
+
+    }

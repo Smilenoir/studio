@@ -9,7 +9,6 @@
 
 import {ai} from '@/ai/ai-instance';
 import {z} from 'genkit';
-import {generateFunFacts, FunFact} from '@/services/fun-fact';
 
 const GenerateFunFactsInputSchema = z.object({
   topics: z.array(z.string()).describe('List of topics related to quiz questions.'),
@@ -57,11 +56,8 @@ const generateFunFactsFlow = ai.defineFlow<
     outputSchema: GenerateFunFactsOutputSchema,
   },
   async input => {
-    // const {output} = await prompt(input);
-    // return output!;
+    const {output} = await prompt(input);
+    return output!;
 
-    // Call the service to get fun facts
-    const funFacts: FunFact[] = await generateFunFacts(input.topics[0]);
-    return funFacts;
   }
 );
