@@ -380,7 +380,7 @@ export const GameSessions = () => {
     };
 
   return (
-    <>
+    
       {/* Session Creation Form */}
       <Card className="w-full max-w-lg">
         <CardHeader>
@@ -456,13 +456,14 @@ export const GameSessions = () => {
           {sessions.length === 0 ? (
             <div>No sessions created yet.</div>
           ) : (
-            <div className="grid gap-4">
+            
               {sessions.map(session => (
                 <Card key={session.id}>
                   <CardHeader>
                     <CardTitle>{session.sessionName}</CardTitle>
                     <CardDescription>
                       Players: {`${0}/${session.maxPlayers}`}
+                    </CardDescription>
                     <CardDescription>Status: {session.status}</CardDescription>
                     <CardDescription>Question Group: {getGroupName(session.questionGroupId)}</CardDescription>
                     <CardDescription>
@@ -492,11 +493,10 @@ export const GameSessions = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            
           )}
         </CardContent>
       </Card>
-    </>
+    
   );
 };
-
