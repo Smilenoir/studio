@@ -53,6 +53,7 @@ export default function PlayerPage() {
   const [alertDescription, setAlertDescription] = useState<string | null>(null);
   const { toast } = useToast();
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
+  const [playersInLobby, setPlayersInLobby] = useState<string[]>([]);
 
 
   useEffect(() => {
@@ -307,8 +308,7 @@ export default function PlayerPage() {
 
 
   const getPlayersInSession = (sessionId: string) => {
-    const session = gameSessions.find(session => session.id === sessionId);
-    return session?.players || [];
+    return playersInLobby;
   };
 
   const joinGame = async (sessionId: string) => {
@@ -373,7 +373,7 @@ export default function PlayerPage() {
         // Append new player to existing players
         try {
           const existingPlayers = JSON.parse(redisData.value);
-          updatedPlayers = { ...existingPlayers, ...playerInfo };
+          updatedPlayers = { ...existingPlayers, [session.id]: 0 };
         } catch (parseError) {
           console.error('Error parsing existing Redis data:', parseError);
           toast({
@@ -403,6 +403,60 @@ export default function PlayerPage() {
         return;
       }
 
+      // Fetch usernames for the lobby
+      const fetchLobbyUsernames = async () => {
+        const { data: redisData, error: redisError } = await supabase
+          .from('redis')
+          .select('value')
+          .eq('key', redisKey)
+          .maybeSingle();
+
+        if (redisError) {
+          console.error('Error fetching Redis data:', redisError);
+          toast({
+            title: "Error",
+            description: "Failed to fetch lobby players.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (redisData && redisData.value) {
+          try {
+            const players = JSON.parse(redisData.value);
+            const playerIds = Object.keys(players);
+            const { data: usersData, error: usersError } = await supabase
+              .from('users')
+              .select('nickname')
+              .in('id', playerIds);
+
+            if (usersError) {
+              console.error('Error fetching usernames:', usersError);
+              toast({
+                title: "Error",
+                description: "Failed to fetch usernames.",
+                variant: "destructive"
+              });
+              return;
+            }
+
+            if (usersData) {
+              const usernames = usersData.map(user => user.nickname);
+              setPlayersInLobby(usernames);
+            }
+          } catch (parseError) {
+            console.error('Error parsing Redis data:', parseError);
+            toast({
+              title: "Error",
+              description: "Failed to parse lobby players data.",
+              variant: "destructive"
+            });
+            return;
+          }
+        }
+      };
+
+      await fetchLobbyUsernames();
       await fetchGameSessions();
 
       toast({
@@ -559,6 +613,19 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader className="flex justify-between">
               <CardTitle>Welcome!</CardTitle>
+              <Button
+                variant="outline"
+                className="h-10 w-10 p-0 text-white rounded-full"
+                onClick={() => {
+                  handleSignOut();
+                }}
+                disabled={loading}
+              >
+                <LogOut
+                  className="h-6 w-6"
+                  aria-hidden="true"
+                />
+              </Button>
             </CardHeader>
             <CardDescription>
               Hello, {session?.nickname}! GL HF!
