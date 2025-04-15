@@ -68,7 +68,6 @@ export const Dashboard = () => {
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
   const [editSessionOpen, setEditSessionOpen] = useState(false);
   const [editedSession, setEditedSession] = useState<Partial<GameSession>>({});
-  const [playersInSession, setPlayersInSession] = useState<{[key: string]: number}>({}); // Players in session
 
   useEffect(() => {
     fetchSessions();
@@ -333,75 +332,6 @@ export const Dashboard = () => {
         }
     };
 
-    const getPlayersInSession = async (sessionId: string) => {
-      try {
-        const { data: redisData, error: redisError } = await supabase
-          .from('redis')
-          .select('value')
-          .eq('key', sessionId)
-          .maybeSingle();
-  
-        if (redisError) {
-          console.error('Error fetching Redis data:', redisError);
-          toast({
-            title: "Error",
-            description: "Failed to fetch lobby players.",
-            variant: "destructive"
-          });
-          return {};
-        }
-  
-        if (redisData && redisData.value) {
-          try {
-            const players = JSON.parse(redisData.value);
-            return players;
-          } catch (parseError) {
-            console.error('Error parsing Redis data:', parseError);
-            toast({
-              title: "Error",
-              description: "Failed to parse lobby players data.",
-              variant: "destructive"
-            });
-            return {};
-          }
-        }
-        return {};
-      } catch (error) {
-        console.error('Unexpected error fetching session players:', error);
-        toast({
-          title: "Error",
-          description: "Unexpected error fetching session players."
-        });
-        return {};
-      }
-    };
-  
-    useEffect(() => {
-      const fetchPlayers = async () => {
-        const playersData: {[key: string]: number}[] = await Promise.all(
-          activeSessions.map(session => getPlayersInSession(session.id))
-        );
-  
-        // Convert the array of objects into a single object
-        const allPlayers: {[key: string]: number} = {};
-        playersData.forEach(players => {
-          Object.assign(allPlayers, players);
-        });
-  
-        setPlayersInSession(allPlayers);
-      };
-  
-      fetchPlayers();
-    }, [activeSessions]);
-
-  const getPlayersCount = (sessionId: string) => {
-    const sessionPlayers = Object.keys(playersInSession).filter(key => key === sessionId);
-    return sessionPlayers.length;
-  };
-
-    const handleTakeControl = (session: GameSession) => {
-      setOpen(true);
-    };
 
   return (
     <div className="container mx-auto max-w-4xl">
@@ -447,11 +377,11 @@ export const Dashboard = () => {
               activeSessions.map(session => (
                 <TableRow key={session.id}>
                   <TableCell>{session.sessionName}</TableCell>
-                  <TableCell>{session.maxPlayers !== undefined ? `${Object.keys(playersInSession).length}/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
+                  <TableCell>{session.maxPlayers}</TableCell>
                   <TableCell>{session.status}</TableCell>
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="icon" onClick={() => handleTakeControl(session)}>
+                      <Button size="icon">
                           <Eye className="h-4 w-4"/>
                       </Button>
                       <Button size="icon" onClick={() => handleEditSession(session)}>
@@ -502,39 +432,6 @@ export const Dashboard = () => {
           </TableBody>
         </Table>
       </div>
-
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Session Players</DialogTitle>
-              <DialogDescription>
-                Here are the players currently in this session.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {/* Display list of players in the session */}
-              {/*
-              Object.keys(playersInSession).map((player) => (
-                <div key={player} className="flex items-center space-x-4 py-2">
-                  <Avatar>
-                    <AvatarImage src="https://github.com/shadcn.png" />
-                    <AvatarFallback>{player.substring(0, 2)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium leading-none">{player}</p>
-                  </div>
-                </div>
-              ))}
-              */}
-            </div>
-            <DialogFooter>
-              <Button type="submit" onClick={() => setOpen(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
     </div>
   );
 };
-
