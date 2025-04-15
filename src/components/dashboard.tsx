@@ -27,6 +27,7 @@ import {supabase} from "@/lib/supabaseClient";
 import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
 import {useRouter} from "next/navigation";
+import {Edit, Trash, RefreshCcw} from "lucide-react";
 
 interface GameSession {
   id: string;
@@ -196,6 +197,82 @@ export const Dashboard = () => {
       }
   };
 
+  const restartGameSession = async (sessionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('game_sessions')
+        .update({ status: 'waiting', question_index: null })
+        .eq('id', sessionId);
+  
+      if (error) {
+        console.error('Error restarting game session:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to restart game session."
+        });
+        return;
+      }
+  
+      // Optimistically update the UI
+      setActiveSessions(prevSessions =>
+        prevSessions.map(session =>
+          session.id === sessionId ? { ...session, status: 'waiting', question_index: null } : session
+        )
+      );
+  
+      toast({
+        title: "Success",
+        description: "Game session restarted successfully."
+      });
+    } catch (error) {
+      console.error('Unexpected error restarting game session:', JSON.stringify(error));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error restarting game session."
+      });
+    }
+  };
+
+  const confirmDeleteSession = (sessionId: string) => {
+    setOpen(true);
+  };
+  
+  const deleteSession = async (sessionId: string) => {
+    try {
+      const { error } = await supabase
+        .from('game_sessions')
+        .delete()
+        .eq('id', sessionId);
+  
+      if (error) {
+        console.error('Error deleting session:', JSON.stringify(error));
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to delete session."
+        });
+        return;
+      }
+  
+      setActiveSessions(prevSessions => prevSessions.filter(session => session.id !== sessionId));
+      setOpen(false);
+  
+      toast({
+        title: "Success",
+        description: "Session deleted successfully."
+      });
+    } catch (error) {
+      console.error('Unexpected error deleting session:', JSON.stringify(error));
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Unexpected error deleting session."
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto max-w-4xl">
       <h2 className="text-2xl font-semibold mb-4">Active Sessions</h2>
@@ -228,7 +305,6 @@ export const Dashboard = () => {
               <TableHead>Players</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Question Group</TableHead>
-              <TableHead>Created At</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -244,11 +320,32 @@ export const Dashboard = () => {
                   <TableCell>{session.maxPlayers !== undefined ? `${session.players ? session.players.length : 0}/${session.maxPlayers}` : `0/${session.maxPlayers}`}</TableCell>
                   <TableCell>{session.status}</TableCell>
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
-                  <TableCell>{format(new Date(session.createdAt), 'yyyy-MM-dd HH:mm')}</TableCell>
                     <TableCell className="text-right">
-                        <Button size="sm" onClick={() => router.push(`/game/${session.id}`)} disabled={session.status === 'active'}>
-                            Take Control
-                        </Button>
+                      <Button size="icon" onClick={() => router.push(`/game/${session.id}`)} disabled={session.status === 'active'}>
+                          <Edit className="h-4 w-4"/>
+                      </Button>
+                      <Button size="icon" onClick={() => restartGameSession(session.id)}>
+                        <RefreshCcw className="h-4 w-4"/>
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="destructive">
+                            <Trash className="h-4 w-4"/>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete this session.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteSession(session.id)}>Continue</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </TableCell>
                 </TableRow>
               ))
@@ -259,4 +356,3 @@ export const Dashboard = () => {
     </div>
   );
 };
-
