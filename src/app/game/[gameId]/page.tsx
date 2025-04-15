@@ -40,7 +40,6 @@ interface GameSession {
   timePerQuestionInSec: number;
   createdAt: string;
   status: 'waiting' | 'active' | 'finished';
-  players: string[];
   question_index: number | null;
 }
 
@@ -78,7 +77,6 @@ export default function GamePage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [time, setTime] = useState(0);
   const [isTimed, setIsTimed] = useState(false);
-  const [isObserver, setIsObserver] = useState(false); // New state for observer mode
   const [timeExpired, setTimeExpired] = useState(false);
   const [userAnswer, setUserAnswer] = useState<UserAnswer | null>(null);
   const [gameSession, setGameSession] = useState<GameSession | null>(null);
@@ -348,7 +346,7 @@ export default function GamePage() {
     try {
       const { data, error } = await supabase
         .from('game_sessions')
-        .select('players')
+        .select('id')
         .eq('id', gameId)
         .single();
 
@@ -358,11 +356,7 @@ export default function GamePage() {
       };
 
       // Check if the admin is the only one in the session
-      if (data && data.players && data.players.length === 1) {
-        return true;
-      }
-
-      return false;
+      return !!data?.id;
     } catch (error) {
       console.error('Unexpected error fetching game session:', error);
       return false;
@@ -372,7 +366,6 @@ export default function GamePage() {
   useEffect(() => {
     async function checkIfAdminObserver() {
       const observerStatus = await isAdminObserver();
-      setIsObserver(observerStatus);
     };
     
     checkIfAdminObserver();
@@ -442,23 +435,71 @@ export default function GamePage() {
     return <div>Loading or Invalid Session...</div>;
   }
 
-  if (sessionData.type === 'admin') {
-    // Render admin-specific content using GamePageContent
-    return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={true} sessionId={gameId} fetchSessionAndQuestions={() => {}}/>;
-  } else if (sessionData.type === 'player') {
-     // Render player-specific content using GamePageContent
-     return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={false} sessionId={gameId} fetchSessionAndQuestions={() => {}}/>;
-    }
-
-  return (
-      <div>Something went wrong</div>
-  );
+  const isAdmin = sessionData.type === 'admin';
+  return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={isAdmin} sessionId={gameId} />;
 }
 
 
-const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, isObserver, isAdmin, sessionId, fetchSessionAndQuestions }) => {
+const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, isObserver, isAdmin, sessionId }) => {
   const router = useRouter();
   const {toast} = useToast();
+  const [connectedPlayers, setConnectedPlayers] = useState<{ [userId: string]: number }>({});
+  const [userNicknames, setUserNicknames] = useState<{ [userId: string]: string }>({});
+
+    useEffect(() => {
+      const fetchPlayersAndNicknames = async () => {
+        if (!gameId) return;
+
+        // Fetch connected players from Redis
+        const {data: redisData, error: redisError} = await supabase
+          .from('redis')
+          .select('value')
+          .eq('key', gameId)
+          .maybeSingle();
+
+        if (redisError) {
+          console.error('Error fetching Redis data:', redisError);
+          toast({
+            title: "Error",
+            description: "Failed to fetch connected players.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        let players: { [userId: string]: number } = {};
+        if (redisData && redisData.value) {
+          try {
+            players = JSON.parse(redisData.value);
+            setConnectedPlayers(players);
+          } catch (parseError) {
+            console.error('Error parsing Redis data:', parseError);
+            toast({
+              title: "Error",
+              description: "Failed to parse connected players data.",
+              variant: "destructive",
+            });
+            return;
+          }
+        } else {
+          setConnectedPlayers({});
+        }
+
+        // Fetch user IDs from overallRanking and questionRanking
+        const userIds = new Set<string>();
+        overallRanking.forEach(user => userIds.add(user.userId));
+        questionRanking.forEach(user => userIds.add(user.userId));
+
+        // Add connected players to the user IDs
+        Object.keys(players).forEach(userId => userIds.add(userId));
+
+        // Fetch nicknames for all user IDs
+        const nicknames = await fetchUserNicknames(Array.from(userIds));
+        setUserNicknames(nicknames);
+      };
+
+      fetchPlayersAndNicknames();
+    }, [gameId, overallRanking, questionRanking]);
 
   const handleStartGameAction = async () => {
     try {
@@ -481,9 +522,6 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
         title: "Success",
         description: "Game session started successfully.",
       });
-
-      // Refresh the session data after starting the game
-      fetchSessionAndQuestions();
     } catch (error) {
       console.error("Unexpected error:", error);
       toast({
@@ -495,6 +533,7 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
   };
 
   const title = isAdmin ? "Admin Game Page" : "Player Game Page";
+
     return (
         <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
             <div className="absolute top-4 left-4">
@@ -543,7 +582,6 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
           {/* Main Content Area */}
           <div className="flex flex-col items-center w-1/3 space-y-4">
               {/* Question Display */}
-
           {question ? (
             <>
               <FunFactGenerator topics={[question.questionText]} />
@@ -578,11 +616,9 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
           )}
               {isAdmin && (
                   <div className="flex space-x-4 mt-4">
-                      {isObserver && (
-                          <Button onClick={handleNextAdminQuestion} variant="outline">
+                      <Button onClick={handleNextAdminQuestion} variant="outline">
                               Next Question
                           </Button>
-                      )}
                       {gameSession?.status !== 'active' &&
                           <Button onClick={handleStartGameAction}>
                               Start Game
@@ -623,4 +659,3 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
   );
 
     }
-
