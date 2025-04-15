@@ -27,6 +27,7 @@ import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Edit, Trash } from "lucide-react";
 
 interface User {
   id: string;
@@ -239,10 +240,14 @@ export const Users = () => {
                       </>
                   ) : (
                       <>
-                          <Button size="sm" onClick={() => startEditing(user)}>Edit</Button>
+                          <Button size="icon" onClick={() => startEditing(user)}>
+                              <Edit className="h-4 w-4"/>
+                          </Button>
                           <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                  <Button size="sm" variant="destructive">Delete</Button>
+                                  <Button size="icon" variant="destructive">
+                                      <Trash className="h-4 w-4"/>
+                                  </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                   <AlertDialogHeader>
