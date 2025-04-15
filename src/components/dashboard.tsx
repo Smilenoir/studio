@@ -27,7 +27,7 @@ import {supabase} from "@/lib/supabaseClient";
 import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
 import {useRouter} from "next/navigation";
-import {Edit, Trash, RefreshCcw} from "lucide-react";
+import {Edit, Trash, RefreshCcw, Eye} from "lucide-react";
 
 interface GameSession {
   id: string;
@@ -338,7 +338,7 @@ export const Dashboard = () => {
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" onClick={() => router.push(`/game/${session.id}`)} disabled={session.status === 'active'}>
-                          Take Control
+                          <Eye className="h-4 w-4"/>
                       </Button>
                       <Button size="icon" onClick={() => router.push(`/game/${session.id}`)}>
                           <Edit className="h-4 w-4"/>
@@ -391,3 +391,4 @@ export const Dashboard = () => {
     </div>
   );
 };
+
