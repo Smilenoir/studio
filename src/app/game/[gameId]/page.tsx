@@ -662,3 +662,4 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
 const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, sessionId }) => {
   // ... component logic ...
 };
+
