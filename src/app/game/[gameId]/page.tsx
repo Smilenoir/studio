@@ -337,9 +337,7 @@ const GamePage = () => {
       return () => clearInterval(intervalId);
     }, [time, toast]);
 
-    const handleAnswer = (answer: string) => {
-      setSelectedAnswer(answer);
-    };
+    
 
     const handleSubmitAnswer = async () => {
       if (!sessionData || !question || !sessionId || !gameSession) {
@@ -610,120 +608,7 @@ const GamePage = () => {
         }
     }, [overallRanking, questionRanking]);
 
-    const handleAnswer = (answer: string) => {
-        setSelectedAnswer(answer);
-    };
-
-    const handleSubmitAnswer = async () => {
-        if (!sessionData || !question || !sessionId || !gameSession) {
-            toast({
-                title: "Error",
-                description: "Missing data. Cannot submit answer.",
-                variant: "destructive"
-            });
-            return;
-        }
-
-        const isCorrect = question.answers.includes(selectedAnswer as string);
-        let points = 0;
-
-        if (isTimed && time !== null && time > 0) {
-            if (isCorrect) {
-                points = time; // Award points based on remaining time
-            }
-        }
-
-        if (!isCorrect) {
-            toast({
-                title: "Incorrect Answer",
-                description: "You did not answer correctly.",
-                variant: "destructive"
-            });
-            return;
-        }
-
-        const redisKey = sessionId;
-        try {
-            // Fetch current data from Redis
-            const { data: redisData, error: redisError } = await supabase
-                .from('redis')
-                .select('value')
-                .eq('key', redisKey)
-                .maybeSingle();
-
-            if (redisError) {
-                console.error('Error fetching Redis data:', redisError);
-                toast({
-                    title: "Error",
-                    description: "Failed to submit answer (fetch Redis data).",
-                    variant: "destructive"
-                });
-                return;
-            }
-
-            if (!redisData || !redisData.value) {
-                toast({
-                    title: "Error",
-                    description: "No data found in Redis.",
-                    variant: "destructive"
-                });
-                return;
-            }
-
-            // Parse JSON data
-            let playerData;
-            try {
-                playerData = JSON.parse(redisData.value);
-            } catch (parseError) {
-                console.error('Error parsing Redis data:', parseError);
-                toast({
-                    title: "Error",
-                    description: "Failed to parse Redis data.",
-                    variant: "destructive"
-                });
-                return;
-            }
-
-            // Update player's score
-            playerData[sessionData.id] = (playerData[sessionData.id] || 0) + points;
-
-            // Stringify updated game data
-            const updatedGameData = JSON.stringify(playerData);
-
-            // Update Redis with new data
-            const { error: updateError } = await supabase
-                .from('redis')
-                .update({ value: updatedGameData })
-                .eq('key', redisKey);
-
-            if (updateError) {
-                console.error('Error updating game data in Redis:', updateError);
-                toast({
-                    title: "Error",
-                    description: "Failed to submit answer (update Redis data).",
-                    variant: "destructive"
-                });
-                return;
-            }
-
-            toast({
-                title: "Correct Answer!",
-                description: `You earned ${points} points!`,
-            });
-            fetchLeaderboard(sessionId);
-            fetchRanking(sessionId);
-
-        } catch (error: any) {
-            console.error('Unexpected error submitting answer:', error);
-            toast({
-                title: "Error",
-                description: error.message,
-                variant: "destructive"
-            });
-        } finally {
-            setTimeExpired(true);
-        }
-    };
+    
 
     const title = isAdmin ? 'Admin Game Page' : 'Player Game Page';
 
