@@ -73,6 +73,7 @@ export default function GamePage() {
   const [questionRanking, setQuestionRanking] = useState<{ userId: string; score: number; timestamp: number; }[]>([]); // Question ranking
   const session = JSON.parse(localStorage.getItem('userSession') || '{}');
   const [isNumericalAnswerSubmitted, setIsNumericalAnswerSubmitted] = useState(false);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -469,3 +470,4 @@ export default function GamePage() {
     </div>
   );
 }
+
