@@ -28,6 +28,7 @@ import {format} from 'date-fns';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Edit, Trash, Check, X, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 interface User {
   id: string;
