@@ -1,10 +1,17 @@
 'use client';
 
+import {Skeleton} from '@/components/ui/skeleton';
 import {useState, useEffect} from 'react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Label} from '@/components/ui/label';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {Slider} from '@/components/ui/slider';
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card';
 import {supabase} from "@/lib/supabaseClient";
@@ -21,6 +28,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {format} from 'date-fns';
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface GameSession {
   id: string;
@@ -380,16 +396,10 @@ export const GameSessions = () => {
     };
 
   return (
-    
+    <>
+    <div className="flex flex-col md:flex-row gap-4">
       {/* Session Creation Form */}
-      
-        
-          
-            Create Game Session
-          
-          
-            Configure and create a new game session.
-          
+      <Card className="w-full max-w-lg">
         
         
           
@@ -432,10 +442,10 @@ export const GameSessions = () => {
                 
               
               
-                {availableGroups.map(group => (
-                  
+                {availableGroups.map((group) => (
+                  <SelectItem key={group.id} value={group.id}>
                     {group.name}
-                  
+                  </SelectItem>
                 ))}
               
             
@@ -472,63 +482,53 @@ export const GameSessions = () => {
             Manage existing game sessions.
           
         
-        
+      <CardContent>
           {sessions.length === 0 ? (
-            
-              No sessions created yet.
-            
+            <div>No sessions created yet.</div>
           ) : (
-            
+            <div className="sessions-list bg-gray-100 border border-gray-200 rounded-md p-4 space-y-2">
               {sessions.map(session => (
-                
-                  
-                    
-                      {session.sessionName}
-                    
-                    
-                      Players: {`${0}/${session.maxPlayers}`}
-                    
-                    
-                      Status: {session.status}
-                    
-                    
-                      Question Group: {getGroupName(session.questionGroupId)}
-                    
-                    
-                        Time per Question: {session.timePerQuestionInSec === 0 ? '∞' : session.timePerQuestionInSec} seconds
-                    
-                  
-                  
-                    
+                <div key={session.id} className="flex items-center justify-between">
+                  <CardDescription>
+                    {session.sessionName}
+                  </CardDescription>
+                  <CardDescription>  Status: {session.status} </CardDescription> <CardDescription> Question Group: {getGroupName(session.questionGroupId)} </CardDescription>
+
+
+                  <CardDescription>
+                    Time per Question: {session.timePerQuestionInSec === 0 ? '∞' : session.timePerQuestionInSec} seconds
+                  </CardDescription>
+                  <div>
+                    <Button variant="outline" size="sm" onClick={() => startEditing(session.id)}>
                       Edit
-                    
-                    
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => restartSession(session.id)} className="ml-2">
                       Restart
-                    
-                    
-                      
-                        
-                          Are you absolutely sure?
-                        
-                        
-                          This action cannot be undone. This will permanently delete the session and remove its data.
-                        
-                      
-                      
-                        Cancel
-                        
-                          Continue
-                        
-                      
-                    
-                  
-                
-              ))}
-            
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="ml-2">
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete the session and remove its data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => deleteSession()}>Continue</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              ))}</div>)}
           )}
-        
+        </CardContent>
+    </Card> </div> </>); };
       
-    
-  );
-};
 
