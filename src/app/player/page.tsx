@@ -187,13 +187,13 @@ export default function PlayerPage() {
 
 
       // Automatically sign in after successful creation
-      // const userSession: UserSession = {
-      //   nickname: nickname,
-      //   id: generateId(),
-      // };
+      const userSession: UserSession = {
+        nickname: nickname,
+        id: user.id,
+      };
 
-      // setSession(userSession);
-      // await saveSession(userSession);
+      setSession(userSession);
+      await saveSession(userSession);
 
     } catch (error: any) {
       setAlertOpen(true);
@@ -613,19 +613,6 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader className="flex justify-between">
               <CardTitle>Welcome!</CardTitle>
-              <Button
-                variant="outline"
-                className="h-10 w-10 p-0 text-white rounded-full"
-                onClick={() => {
-                  handleSignOut();
-                }}
-                disabled={loading}
-              >
-                <LogOut
-                  className="h-6 w-6"
-                  aria-hidden="true"
-                />
-              </Button>
             </CardHeader>
             <CardDescription>
               Hello, {session?.nickname}! GL HF!
@@ -734,4 +721,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
