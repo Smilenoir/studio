@@ -4,7 +4,6 @@ import {useState, useEffect} from 'react';
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -49,7 +48,6 @@ interface GameSession {
   timePerQuestionInSec: number;
   createdAt: string;
   status: 'waiting' | 'active' | 'finished';
-  players: string[];
 }
 
 interface Group {
@@ -70,6 +68,9 @@ export const Dashboard = () => {
   const [editSessionOpen, setEditSessionOpen] = useState(false);
   const [editedSession, setEditedSession] = useState<Partial<GameSession>>({});
     const [playersInSession, setPlayersInSession] = useState<{ [key: string]: number }>({});
+    const [adminViewOpen, setAdminViewOpen] = useState(false);
+    const [selectedSession, setSelectedSession] = useState<GameSession | null>(null);
+
 
   useEffect(() => {
     fetchSessions();
@@ -408,6 +409,11 @@ export const Dashboard = () => {
             .subscribe()
     }, []);
 
+    const handleTakeControl = (session: GameSession) => {
+        setSelectedSession(session);
+        setAdminViewOpen(true);
+    };
+
 
   return (
     <div className="container mx-auto max-w-4xl">
@@ -457,7 +463,7 @@ export const Dashboard = () => {
                   <TableCell>{session.status}</TableCell>
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="icon">
+                      <Button size="icon" onClick={() => handleTakeControl(session)}>
                           <Eye className="h-4 w-4"/>
                       </Button>
                       <Button size="icon" onClick={() => handleEditSession(session)}>
@@ -508,6 +514,24 @@ export const Dashboard = () => {
           </TableBody>
         </Table>
       </div>
+      <Dialog open={adminViewOpen} onOpenChange={setAdminViewOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Admin View</DialogTitle>
+                  <DialogDescription>
+                      {selectedSession ? selectedSession.sessionName : 'No session selected'}
+                  </DialogDescription>
+              </DialogHeader>
+              {selectedSession && (
+                  <div>
+                      <p>Connected Players: {getConnectedPlayersCount(selectedSession.id)}/{selectedSession.maxPlayers}</p>
+                      <p>Session Status: {selectedSession.status}</p>
+                      <Button>Start Game</Button>
+                  </div>
+              )}
+          </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
