@@ -436,11 +436,11 @@ export default function GamePage() {
   }
 
   const isAdmin = sessionData.type === 'admin';
-  return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={isAdmin} sessionId={gameId} />;
+  return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isAdmin={isAdmin} sessionId={gameId} />;
 }
 
 
-const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, isObserver, isAdmin, sessionId }) => {
+const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, sessionId }) => {
   const router = useRouter();
   const {toast} = useToast();
   const [connectedPlayers, setConnectedPlayers] = useState<{ [userId: string]: number }>({});
@@ -532,7 +532,7 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
     }
   };
 
-  const title = isAdmin ? "Admin Game Page" : "Player Game Page";
+  const title = sessionData.type === 'admin' ? "Admin Game Page" : "Player Game Page";
 
     return (
         <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
@@ -614,7 +614,7 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
           ) : (
             <ResultsDisplay results={results} />
           )}
-              {isAdmin && (
+              {sessionData.type === 'admin' && (
                   <div className="flex space-x-4 mt-4">
                       <Button onClick={handleNextAdminQuestion} variant="outline">
                               Next Question
@@ -659,3 +659,6 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
   );
 
     }
+const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, sessionId }) => {
+  // ... component logic ...
+};
