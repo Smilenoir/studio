@@ -27,7 +27,7 @@ import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Edit, Trash, Check, X } from "lucide-react";
+import { Edit, Trash, Check, X, Plus } from "lucide-react";
 
 interface User {
   id: string;
@@ -42,6 +42,12 @@ export const Users = () => {
   const [open, setOpen] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const {toast} = useToast();
+  const [newUser, setNewUser] = useState<Omit<User, 'id' | 'created_at'>>({
+    nickname: '',
+    password: '',
+    type: 'player',
+  });
+  const [groupError, setGroupNameError] = useState<string | null>(null);
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editedUser, setEditedUser] = useState<Partial<User>>({});
@@ -76,6 +82,80 @@ export const Users = () => {
     }
   };
 
+    const handleCreateUser = async () => {
+        if (newUser.nickname.trim() === '') {
+            setGroupNameError('User name cannot be empty.');
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "User name cannot be empty."
+            })
+            return;
+        }
+
+        if (newUser.password.trim() === '') {
+            setGroupNameError('Password cannot be empty.');
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Password cannot be empty."
+            })
+            return;
+        }
+
+        if (users.some(user => user.nickname === newUser.nickname)) {
+            setGroupNameError('User name already exists.');
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "User name already exists."
+            })
+            return;
+        }
+        try {
+            const { error } = await supabase
+                .from('users')
+                .insert([
+                    {
+                        nickname: newUser.nickname,
+                        password: newUser.password,
+                        type: newUser.type,
+                        created_at: new Date().toISOString()
+                    }
+                ])
+                .select();
+
+            if (error) {
+                console.error('Error creating user:', error);
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to create user."
+                })
+                return;
+            }
+
+            fetchUsers();
+            setNewUser({
+                nickname: '',
+                password: '',
+                type: 'player',
+            });
+            toast({
+                title: "Success",
+                description: "User created successfully."
+            });
+        } catch (error) {
+            console.error('Unexpected error creating user:', error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Unexpected error creating user."
+            })
+        }
+    };
+
+
   const confirmDeleteUser = (userId: string) => {
     setDeletingUserId(userId);
     setOpen(true);
@@ -91,7 +171,7 @@ export const Users = () => {
           toast({
             variant: "destructive",
             title: "Error",
-            description: "Failed to delete user."
+            description: "Failed to add user."
           });
           return;
         }
@@ -129,6 +209,7 @@ export const Users = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setEditedUser(prev => ({ ...prev, [name]: value }));
+      setNewUser(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSelectChange = (value: string, name: string) => {
@@ -142,6 +223,7 @@ export const Users = () => {
       const { error } = await supabase
         .from('users')
         .update({
+          nickname: editedUser.nickname,
           password: editedUser.password,
           type: editedUser.type,
         })
@@ -184,6 +266,50 @@ export const Users = () => {
     <div className="container mx-auto max-w-4xl">
       <h2 className="text-2xl font-semibold mb-4">Users</h2>
 
+      <div className="rounded-md border mb-4">
+          <h3 className="text-lg font-semibold mb-2 p-4">Create New User</h3>
+          <div className="grid grid-cols-3 gap-4 p-4">
+              <div>
+                  <Label htmlFor="new-nickname">Nickname</Label>
+                  <Input
+                      type="text"
+                      id="new-nickname"
+                      name="nickname"
+                      value={newUser.nickname}
+                      onChange={handleInputChange}
+                  />
+              </div>
+              <div>
+                  <Label htmlFor="new-password">Password</Label>
+                  <Input
+                      type="password"
+                      id="new-password"
+                      name="password"
+                      value={newUser.password}
+                      onChange={handleInputChange}
+                  />
+              </div>
+              <div>
+                  <Label htmlFor="new-type">Type</Label>
+                  <Select onValueChange={(value) => handleSelectChange(value, 'type')}>
+                      <SelectTrigger id="new-type">
+                          <SelectValue placeholder="Select a type">
+                              {newUser.type || "Select a type"}
+                          </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="player">Player</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                  </Select>
+              </div>
+          </div>
+          <div className="p-4">
+              <Button onClick={handleCreateUser}>Create User</Button>
+              {groupError && <p className="text-red-500">{groupError}</p>}
+          </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -203,7 +329,18 @@ export const Users = () => {
             ) : (
               users.map(user => (
                 <TableRow key={user.id}>
-                  <TableCell>{user.nickname}</TableCell>
+                  <TableCell>
+                    {editingUserId === user.id ? (
+                      <Input
+                        type="text"
+                        name="nickname"
+                        value={editedUser.nickname === undefined ? user.nickname : editedUser.nickname}
+                        onChange={handleInputChange}
+                      />
+                    ) : (
+                      user.nickname
+                    )}
+                  </TableCell>
                   <TableCell>
                   {editingUserId === user.id ? (
                       <Select onValueChange={(value) => handleSelectChange(value, 'type')} defaultValue={user.type}>
