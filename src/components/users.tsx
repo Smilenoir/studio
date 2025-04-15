@@ -27,7 +27,7 @@ import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Edit, Trash } from "lucide-react";
+import { Edit, Trash, Check, X } from "lucide-react";
 
 interface User {
   id: string;
@@ -235,8 +235,12 @@ export const Users = () => {
                   <TableCell className="text-right">
                   {editingUserId === user.id ? (
                       <>
-                          <Button size="sm" onClick={updateUser}>Update</Button>
-                          <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
+                          <Button size="icon" onClick={updateUser}>
+                              <Check className="h-4 w-4"/>
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={cancelEditing}>
+                              <X className="h-4 w-4"/>
+                          </Button>
                       </>
                   ) : (
                       <>
