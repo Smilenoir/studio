@@ -236,8 +236,8 @@ export const Dashboard = () => {
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                   <TableCell>{format(new Date(session.createdAt), 'yyyy-MM-dd HH:mm')}</TableCell>
                     <TableCell className="text-right">
-                        <Button size="sm" onClick={() => startGameSession(session.id)} disabled={session.status === 'active'}>
-                            {session.status === 'active' ? "Active" : "Start"}
+                        <Button size="sm" onClick={() => router.push(`/game/${session.id}`)} disabled={session.status === 'active'}>
+                            Take Control
                         </Button>
                     </TableCell>
                 </TableRow>

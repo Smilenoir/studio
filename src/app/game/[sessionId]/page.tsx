@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
+import {useToast} from "@/hooks/use-toast";
 
 interface Question {
   id: string;
@@ -74,6 +75,7 @@ export default function GamePage() {
   const session = JSON.parse(localStorage.getItem('userSession') || '{}');
   const [isNumericalAnswerSubmitted, setIsNumericalAnswerSubmitted] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+  const {toast} = useToast();
 
   useEffect(() => {
     if (!sessionId) return;
@@ -358,6 +360,37 @@ export default function GamePage() {
     }
   };
 
+  const handleStartGame = async () => {
+    try {
+      const { error: updateError } = await supabase
+        .from('game_sessions')
+        .update({ status: 'active' })
+        .eq('id', sessionId);
+
+      if (updateError) {
+        console.error("Error starting game session:", updateError);
+        toast({
+          title: "Error",
+          description: "Failed to start game session.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Game session started successfully.",
+      });
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      toast({
+        title: "Error",
+        description: "Unexpected error starting game session.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
       <div className="absolute bottom-4 left-4">
@@ -435,9 +468,16 @@ export default function GamePage() {
             <ResultsDisplay results={results} />
           )}
           {isObserver && (
-            <Button onClick={handleNextAdminQuestion}>
-              Next Question
-            </Button>
+            <>
+              <Button onClick={handleNextAdminQuestion}>
+                Next Question
+              </Button>
+              {gameSession?.status !== 'active' &&
+                <Button onClick={handleStartGame}>
+                  Start Game
+                </Button>
+              }
+            </>
           )}
         </div>
 
@@ -470,4 +510,3 @@ export default function GamePage() {
     </div>
   );
 }
-
