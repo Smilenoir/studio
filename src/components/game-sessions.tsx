@@ -68,6 +68,7 @@ export const GameSessions = () => {
   const [open, setOpen] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [playerCounts, setPlayerCounts] = useState<{ [sessionId: string]: number }>({});
+    const [addUserFormVisible, setAddUserFormVisible] = useState(false);
 
   useEffect(() => {
     fetchGroups();
@@ -400,47 +401,40 @@ export const GameSessions = () => {
     <div className="flex flex-col md:flex-row gap-4">
       {/* Session Creation Form */}
       <Card className="w-full max-w-lg">
-        
-        
-          
-            
-              Session Name
-            
-            
+        <CardHeader>
+          <CardTitle>Create Game Session</CardTitle>
+          <CardDescription>Configure and create a new game session.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="sessionName">Session Name</Label>
+            <Input
               type="text"
               id="sessionName"
               name="sessionName"
               value={newSession.sessionName}
               onChange={handleInputChange}
               placeholder="Enter session name"
-            
-          
-          
-
-          
-            
-              Max Players ({newSession.maxPlayers})
-            
-            
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="maxPlayers">Max Players ({newSession.maxPlayers})</Label>
+            <Slider
               defaultValue={[5]}
               max={30}
               min={1}
               step={1}
               onValueChange={value => handleSliderChange(value as number[])}
-            
-          
-          
-
-          
-            
-              Question Group
-            
-            
-              
-                
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="questionGroupId">Question Group</Label>
+            <Select onValueChange={handleSelectChange}>
+              <SelectTrigger id="questionGroupId">
+                <SelectValue placeholder="Select a group">
                   {availableGroups.find(group => group.id === newSession.questionGroupId)?.name || "Select a group"}
-                
-              
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {availableGroups.map((group) => (
                   <SelectItem key={group.id} value={group.id}>
@@ -448,40 +442,30 @@ export const GameSessions = () => {
                   </SelectItem>
                 ))}
               </SelectContent>
-            
-          
-          
-
-          
-            
-              Time per Question (seconds) ({newSession.timePerQuestionInSec === 0 ? '∞' : newSession.timePerQuestionInSec})
-            
-            
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="timePerQuestionInSec">Time per Question (seconds) ({newSession.timePerQuestionInSec === 0 ? '∞' : newSession.timePerQuestionInSec})</Label>
+            <Slider
                 defaultValue={[0]}
                 max={60}
                 min={0}
                 step={1}
                 onValueChange={value => handleTimeSliderChange(value as number[])}
-            
-          
-          
-
-          
+            />
+          </div>
+          <Button onClick={addSession}>
             {editingSessionId ? 'Update Session' : 'Create Session'}
-          
-        
-      
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Session List */}
-      
-        
-          
-            Existing Sessions
-          
-          
-            Manage existing game sessions.
-          
-        
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>Existing Sessions</CardTitle>
+          <CardDescription>Manage existing game sessions.</CardDescription>
+        </CardHeader>
       <CardContent>
           {sessions.length === 0 ? (
             <div>No sessions created yet.</div>
@@ -530,6 +514,3 @@ export const GameSessions = () => {
           )}
         </CardContent>
     </Card> </div> </>); };
-      
-
-
