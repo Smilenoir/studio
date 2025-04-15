@@ -159,7 +159,7 @@ export default function PlayerPage() {
 
       const { error: insertError } = await supabase
         .from('users')
-        .insert({ nickname, password })
+        .insert({ nickname, password, created_at: new Date().toISOString() })
         .select();
 
       if (insertError) {
@@ -180,9 +180,13 @@ export default function PlayerPage() {
         description: "User created successfully!"
       });
 
+      setAlertOpen(true);
+      setAlertTitle('Success');
+      setAlertDescription('User created successfully!');
+
 
       // Automatically sign in after successful creation
-      handleSignIn();
+      // handleSignIn();
 
     } catch (error: any) {
       setAlertOpen(true);
@@ -379,12 +383,20 @@ export default function PlayerPage() {
 
 
       } catch (error: any) {
-          console.error('Unexpected error joining game:', error);
-          toast({
-              title: "Error",
-              description: "Unexpected error joining game.",
-              variant: "destructive"
-          });
+        let errorMessage = "Unexpected error joining game.";
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.error?.message) {
+          errorMessage = error.error.message;
+        } else if (error.data?.message) {
+          errorMessage = error.data.message;
+        }
+        console.error('Unexpected error joining game:', error);
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+          })
       }
   };
 
@@ -517,19 +529,6 @@ export default function PlayerPage() {
           <Card className="border">
             <CardHeader className="flex justify-between">
               <CardTitle>Welcome!</CardTitle>
-              <Button
-                variant="outline"
-                className="h-10 w-10 p-0 text-white rounded-full"
-                onClick={() => {
-                  handleSignOut();
-                }}
-                disabled={loading}
-              >
-                <LogOut
-                  className="h-6 w-6"
-                  aria-hidden="true"
-                />
-              </Button>
             </CardHeader>
             <CardDescription>
               Hello, {session?.nickname}! GL HF!
@@ -638,3 +637,4 @@ export default function PlayerPage() {
     </div>
   );
 }
+
