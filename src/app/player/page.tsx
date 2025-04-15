@@ -186,7 +186,13 @@ export default function PlayerPage() {
 
 
       // Automatically sign in after successful creation
-      handleSignIn();
+      const userSession: UserSession = {
+        nickname: nickname,
+        id: generateId(),
+      };
+
+      setSession(userSession);
+      await saveSession(userSession);
 
     } catch (error: any) {
       setAlertOpen(true);
@@ -306,106 +312,122 @@ export default function PlayerPage() {
   };
 
   const joinGame = async (sessionId: string) => {
-      if (!session.id) {
-          toast({
-              title: "Error",
-              description: "You must sign in to join a game.",
-              variant: "destructive"
-          });
-          return;
-      }
+    if (!session.id) {
+      toast({
+        title: "Error",
+        description: "You must sign in to join a game.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-      try {
-          const {data: gameSession, error: gameSessionError} = await supabase
-              .from('game_sessions')
-              .select('*')
-              .eq('id', sessionId)
-              .single();
+    try {
+      const { data: gameSession, error: gameSessionError } = await supabase
+        .from('game_sessions')
+        .select('*')
+        .eq('id', sessionId)
+        .single();
 
-          if (gameSessionError) {
-              console.error('Error fetching game session:', gameSessionError);
-              toast({
-                  title: "Error",
-                  description: "Failed to join game.",
-                  variant: "destructive"
-              });
-              return;
-          }
-
-          // Ensure the game session exists
-          if (!gameSession) {
-              toast({
-                  title: "Error",
-                  description: "Game session not found.",
-                  variant: "destructive"
-              });
-              return;
-          }
-
-          // Check if the player is already in the session
-          if (gameSession.players && gameSession.players.includes(session.id)) {
-              toast({
-                  title: "Info",
-                  description: "You have already joined this game.",
-              });
-              setJoinedSessionId(sessionId);
-              return;
-          }
-
-          const {data: updatedSession, error: updateError} = await supabase
-              .from('game_sessions')
-              .update({
-                  players: [...(gameSession.players || []), session.id],
-              })
-              .eq('id', sessionId)
-              .select()
-              .single();
-
-
-          if (updateError) {
-              let errorMessage = "Failed to join game.";
-              if (updateError.message) {
-                  errorMessage = updateError.message;
-              } else if (updateError.error?.message) {
-                  errorMessage = updateError.error.message;
-              } else if (updateError.data?.message) {
-                  errorMessage = updateError.data.message;
-              }
-              console.error('Error joining game:', errorMessage);
-              toast({
-                  title: "Error",
-                  description: errorMessage,
-                  variant: "destructive"
-              });
-              return;
-          }
-
-          await fetchGameSessions();
-
-          toast({
-              title: "Success",
-              description: "Successfully joined the game!",
-          });
-
-          setJoinedSessionId(sessionId);
-
-
-      } catch (error: any) {
-        let errorMessage = "Unexpected error joining game.";
-        if (error.message) {
-          errorMessage = error.message;
-        } else if (error.error?.message) {
-          errorMessage = error.error.message;
-        } else if (error.data?.message) {
-          errorMessage = error.data.message;
-        }
-        console.error('Unexpected error joining game:', error);
+      if (gameSessionError) {
+        console.error('Error fetching game session:', gameSessionError);
         toast({
           title: "Error",
-          description: errorMessage,
+          description: "Failed to join game.",
           variant: "destructive"
-          })
+        });
+        return;
       }
+
+      if (!gameSession) {
+        toast({
+          title: "Error",
+          description: "Game session not found.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Initialize player scores in Redis
+      const redisKey = sessionId;
+      const playerInfo = { [session.id]: 0 };
+
+      // Try to get existing data from Redis
+      const { data: redisData, error: redisError } = await supabase
+        .from('redis')
+        .select('value')
+        .eq('key', redisKey)
+        .maybeSingle();
+
+      if (redisError) {
+        console.error('Error fetching Redis data:', redisError);
+        toast({
+          title: "Error",
+          description: "Failed to join game.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      let updatedPlayers;
+      if (redisData) {
+        // Append new player to existing players
+        try {
+          const existingPlayers = JSON.parse(redisData.value);
+          updatedPlayers = { ...existingPlayers, ...playerInfo };
+        } catch (parseError) {
+          console.error('Error parsing existing Redis data:', parseError);
+          toast({
+            title: "Error",
+            description: "Failed to join game.",
+            variant: "destructive"
+          });
+          return;
+        }
+      } else {
+        // If no data exists, create new entry with the player
+        updatedPlayers = playerInfo;
+      }
+
+      // Update Redis with the new player data
+      const { error: updateError } = await supabase
+        .from('redis')
+        .upsert({ key: redisKey, value: JSON.stringify(updatedPlayers) }, { onConflict: 'key' });
+
+      if (updateError) {
+        console.error('Error updating Redis:', updateError);
+        toast({
+          title: "Error",
+          description: "Failed to join game.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await fetchGameSessions();
+
+      toast({
+        title: "Success",
+        description: "Successfully joined the game!",
+      });
+
+      setJoinedSessionId(sessionId);
+
+    } catch (error: any) {
+      let errorMessage = "Unexpected error joining game.";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.error?.message) {
+        errorMessage = error.error.message;
+      } else if (error.data?.message) {
+        errorMessage = error.data.message;
+      }
+      console.error('Unexpected error joining game:', error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    }
   };
 
   useEffect(() => {
@@ -645,5 +667,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
