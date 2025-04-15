@@ -487,7 +487,7 @@ export const GameSessions = () => {
         </CardHeader>
       <CardContent>
           {sessions.length === 0 ? (
-            <div>No sessions created yet.</div>
+            <div>Добавь игру и сыграй с друзьями</div>
           ) : (
             <div className="sessions-list bg-gray-100 border border-gray-200 rounded-md p-4 space-y-2">
               {sessions.map(session => (
