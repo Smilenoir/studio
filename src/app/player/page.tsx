@@ -22,7 +22,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { generateId } from "@/lib/utils";
+// import { generateId } from "@/lib/utils";
 
 interface GameSession {
   id: string;
@@ -186,13 +186,13 @@ export default function PlayerPage() {
 
 
       // Automatically sign in after successful creation
-      const userSession: UserSession = {
-        nickname: nickname,
-        id: generateId(),
-      };
+      // const userSession: UserSession = {
+      //   nickname: nickname,
+      //   id: generateId(),
+      // };
 
-      setSession(userSession);
-      await saveSession(userSession);
+      // setSession(userSession);
+      // await saveSession(userSession);
 
     } catch (error: any) {
       setAlertOpen(true);
