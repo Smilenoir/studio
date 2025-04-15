@@ -291,87 +291,108 @@ export default function PlayerPage() {
       };
 
       const leaveLobby = async () => {
-        if (!session.id || !joinedSessionId) {
-          toast({
-            title: "Error",
-            description: "Cannot leave lobby: No session or game joined.",
-            variant: "destructive",
-          });
-          return;
-        }
+        const gameId = joinedSessionId;
+        const { id: userId, nickname: userNickname } = session;
 
-        try {
-          // Fetch the current Redis value
-          const { data: redisData, error: redisError } = await supabase
-            .from('redis')
-            .select('value')
-            .eq('key', joinedSessionId)
-            .maybeSingle();
-
-          if (redisError) {
-            console.error('Error fetching Redis data:', redisError);
+        if (!userId || !gameId) {
             toast({
-              title: "Error",
-              description: "Failed to leave lobby (fetch data).",
-              variant: "destructive",
+                title: "Error",
+                description: "Cannot leave lobby: Missing game or user information.",
+                variant: "destructive",
             });
             return;
-          }
+        }
 
-          if (redisData && redisData.value) {
-            let players = {};
-            try {
-              // Parse the JSON and remove the player
-              players = JSON.parse(redisData.value);
-              delete players[session.id];
-            } catch (parseError) {
-              console.error('Error parsing Redis data:', parseError);
-              toast({
-                title: "Error",
-                description: "Failed to leave lobby (parse error).",
-                variant: "destructive",
-              });
-              return;
+        // Remove player from the local state
+        setPlayersInLobby(prevPlayers => prevPlayers.filter(player => player !== userNickname));
+
+        try {
+            // 1. Fetch current game data from Redis
+            const { data: redisData, error: fetchError } = await supabase
+                .from('redis')
+                .select('value')
+                .eq('key', gameId)
+                .single();
+
+            if (fetchError) {
+                console.error('Error fetching game data from Redis:', fetchError);
+                toast({
+                    title: "Error",
+                    description: "Failed to leave lobby (fetch game data).",
+                    variant: "destructive",
+                });
+                return;
             }
 
-            // Update Redis with the new player data (player removed)
+            // 2. Parse JSON
+            let gameData;
+            try {
+                gameData = JSON.parse(redisData.value);
+            } catch (parseError) {
+                console.error('Error parsing game data from Redis:', parseError);
+                toast({
+                    title: "Error",
+                    description: "Failed to leave lobby (parse game data).",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            // 3. Remove the player (assuming gameData is an object with player IDs as keys)
+            if (gameData && gameData[userId]) {
+              delete gameData[userId];
+            }
+
+            // 4. Stringify updated game data
+            const updatedGameData = JSON.stringify(gameData);
+
+            // 5. Update Redis with new data
             const { error: updateError } = await supabase
-              .from('redis')
-              .update({ key: joinedSessionId, value: JSON.stringify(players) })
-              .eq('key', joinedSessionId);
+                .from('redis')
+                .update({ value: updatedGameData })
+                .eq('key', gameId);
 
             if (updateError) {
-              console.error('Error updating Redis:', updateError);
-              toast({
-                title: "Error",
-                description: "Failed to leave lobby (update Redis).",
-                variant: "destructive",
-              });
-              return;
+                console.error('Error updating game data in Redis:', updateError);
+                toast({
+                    title: "Error",
+                    description: "Failed to leave lobby (update game data).",
+                    variant: "destructive",
+                });
+                return;
             }
 
-            // Clear local states and unsubscribe
-            setPlayersInLobby(prevPlayers => prevPlayers.filter(player => player !== session.nickname));
+            // Clear local states
             setJoinedSessionId(null);
             setLobbyGameSession(null);
-
             toast({
               title: "Success",
               description: "Left the lobby successfully!",
             });
-
+           
              // Unsubscribe from changes
-             supabase.removeChannel('redis-changes');
-          }
+            const channel = supabase.channel('redis-changes');
+            if (!channel) {
+              console.warn('Channel "redis-changes" does not exist. Skipping unsubscribe.');
+              return; // Exit early if the channel is not found
+            }
+
+            // Unsubscribe from changes
+            supabase.removeChannel(channel)
+            
+             // Redirect
+            router.push('/');
+
         } catch (error: any) {
-          console.error('Unexpected error leaving lobby:', error);
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
+            console.error('Unexpected error leaving lobby:', error);
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive",
+            });
         }
-      };
+    };
+
 
   useEffect(() => {
     const checkGameStatus = async () => {

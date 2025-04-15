@@ -51,6 +51,7 @@ export const GameSessions = () => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
+  const [playerCounts, setPlayerCounts] = useState<{ [sessionId: string]: number }>({});
 
   useEffect(() => {
     fetchGroups();
@@ -58,6 +59,7 @@ export const GameSessions = () => {
   }, []);
 
 
+    // Inside GameSessions component, before fetchGroups
     const fetchSessions = async () => {
         try {
             const {data, error} = await supabase
@@ -72,7 +74,17 @@ export const GameSessions = () => {
                 })
                 return;
             }
-            setSessions(data || []);
+
+            const fetchedSessions = data || [];
+            setSessions(fetchedSessions);
+            // After fetching sessions, fetch player counts
+            fetchedSessions.forEach(async (session) => {
+                const count = await getConnectedPlayerCount(session.id);
+                setPlayerCounts((prevCounts) => ({
+                    ...prevCounts,
+                    [session.id]: count,
+                }));
+            });
         } catch (error) {
             console.error('Unexpected error fetching game sessions:', JSON.stringify(error));
             toast({
@@ -80,6 +92,43 @@ export const GameSessions = () => {
                 title: "Error",
                 description: "Unexpected error fetching game sessions."
             })
+        }
+    };
+
+    const getConnectedPlayerCount = async (gameId: string): Promise<number> => {
+        try {
+            const { data, error } = await supabase
+                .from("redis")
+                .select("value")
+                .eq("key", gameId)
+                .single();
+
+            if (error) {
+                console.error("Error fetching game data from Redis:", error);
+                return 0;
+            }
+
+            if (data && data.value) {
+                try {
+                    const gameData = JSON.parse(data.value);
+                    // Assuming the players data is in an array named 'players'
+                    if (Array.isArray(gameData.players)) {
+                        return gameData.players.length;
+                    } else {
+                        console.warn("Unexpected game data format in Redis:", gameData);
+                        return 0;
+                    }
+                } catch (parseError) {
+                    console.error("Error parsing game data:", parseError);
+                    return 0;
+                }
+            } else {
+                console.warn("No game data found in Redis for game ID:", gameId);
+                return 0;
+            }
+        } catch (error) {
+            console.error("Unexpected error in getConnectedPlayerCount:", error);
+            return 0;
         }
     };
 
@@ -331,7 +380,7 @@ export const GameSessions = () => {
     };
 
   return (
-    <div className="flex flex-col md:flex-row gap-4">
+    <>
       {/* Session Creation Form */}
       <Card className="w-full max-w-lg">
         <CardHeader>
@@ -414,7 +463,6 @@ export const GameSessions = () => {
                     <CardTitle>{session.sessionName}</CardTitle>
                     <CardDescription>
                       Players: {`${0}/${session.maxPlayers}`}
-                    </CardDescription>
                     <CardDescription>Status: {session.status}</CardDescription>
                     <CardDescription>Question Group: {getGroupName(session.questionGroupId)}</CardDescription>
                     <CardDescription>
@@ -448,6 +496,7 @@ export const GameSessions = () => {
           )}
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 };
+
