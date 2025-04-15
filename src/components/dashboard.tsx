@@ -51,6 +51,8 @@ export const Dashboard = () => {
   const [open, setOpen] = useState(false);
     const {toast} = useToast();
     const router = useRouter();
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSessions();
@@ -197,12 +199,18 @@ export const Dashboard = () => {
       }
   };
 
-  const restartGameSession = async (sessionId: string) => {
+  const confirmRestartSession = (sessionId: string) => {
+    setRestartingSessionId(sessionId);
+    setOpen(true);
+  };
+
+  const restartGameSession = async () => {
+    if (!restartingSessionId) return;
     try {
       const { error } = await supabase
         .from('game_sessions')
         .update({ status: 'waiting', question_index: null })
-        .eq('id', sessionId);
+        .eq('id', restartingSessionId);
   
       if (error) {
         console.error('Error restarting game session:', JSON.stringify(error));
@@ -217,7 +225,7 @@ export const Dashboard = () => {
       // Optimistically update the UI
       setActiveSessions(prevSessions =>
         prevSessions.map(session =>
-          session.id === sessionId ? { ...session, status: 'waiting', question_index: null } : session
+          session.id === restartingSessionId ? { ...session, status: 'waiting', question_index: null } : session
         )
       );
   
@@ -232,19 +240,24 @@ export const Dashboard = () => {
         title: "Error",
         description: "Unexpected error restarting game session."
       });
+    } finally {
+        setOpen(false);
+        setRestartingSessionId(null);
     }
   };
 
   const confirmDeleteSession = (sessionId: string) => {
+    setSessionToDelete(sessionId);
     setOpen(true);
   };
   
-  const deleteSession = async (sessionId: string) => {
+  const deleteSession = async () => {
+    if (!sessionToDelete) return;
     try {
       const { error } = await supabase
         .from('game_sessions')
         .delete()
-        .eq('id', sessionId);
+        .eq('id', sessionToDelete);
   
       if (error) {
         console.error('Error deleting session:', JSON.stringify(error));
@@ -256,7 +269,7 @@ export const Dashboard = () => {
         return;
       }
   
-      setActiveSessions(prevSessions => prevSessions.filter(session => session.id !== sessionId));
+      setActiveSessions(prevSessions => prevSessions.filter(session => session.id !== sessionToDelete));
       setOpen(false);
   
       toast({
@@ -270,6 +283,9 @@ export const Dashboard = () => {
         title: "Error",
         description: "Unexpected error deleting session."
       });
+    } finally {
+        setOpen(false);
+        setSessionToDelete(null);
     }
   };
 
@@ -322,14 +338,33 @@ export const Dashboard = () => {
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                     <TableCell className="text-right">
                       <Button size="icon" onClick={() => router.push(`/game/${session.id}`)} disabled={session.status === 'active'}>
-                          <Edit className="h-4 w-4"/>
+                          Take Control
                       </Button>
-                      <Button size="icon" onClick={() => restartGameSession(session.id)}>
-                        <RefreshCcw className="h-4 w-4"/>
+                      <Button size="icon" onClick={() => router.push(`/game/${session.id}`)}>
+                          <Edit className="h-4 w-4"/>
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="destructive">
+                          <Button size="icon" onClick={() => confirmRestartSession(session.id)} disabled={session.status === 'waiting'}>
+                            <RefreshCcw className="h-4 w-4"/>
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action will restart the session.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={restartGameSession}>Continue</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="destructive" onClick={() => confirmDeleteSession(session.id)}>
                             <Trash className="h-4 w-4"/>
                           </Button>
                         </AlertDialogTrigger>
@@ -342,7 +377,7 @@ export const Dashboard = () => {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => deleteSession(session.id)}>Continue</AlertDialogAction>
+                            <AlertDialogAction onClick={deleteSession}>Continue</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
