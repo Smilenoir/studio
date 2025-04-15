@@ -1,665 +1,152 @@
-'use client'
+'use client';
+'use client';
 
-import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import {supabase} from "@/lib/supabaseClient";
-import {QuestionDisplay} from "@/components/question-display";
-import {AnswerInput} from "@/components/answer-input";
-import {ResultsDisplay} from "@/components/results-display";
-import {TimerDisplay} from "@/components/timer-display";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {FunFactGenerator} from "@/components/fun-fact-generator";
-import { ArrowLeft } from "lucide-react";
-import {useToast} from "@/hooks/use-toast";
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient'; // Assuming you have your Supabase client initialized here
+
+interface User {
+  type: string;
+};
+
+interface Answer {
+  text: string;
+  isCorrect: boolean;
+}
 
 interface Question {
-  id: string;
-  groupId: string;
-  questionType: 'multipleChoice' | 'numerical';
-  answers: string[];
-  correctAnswer: string | null;
-  correctNumber: number | null;
-  questionText: string;
+  text: string;
+  answers: Answer[];
 }
 
-interface GameSession {
-  id: string;
+interface GameSessionData {
   sessionName: string;
-  maxPlayers: number;
-  questionGroupId: string;
-  timePerQuestionInSec: number;
-  createdAt: string;
-  status: 'waiting' | 'active' | 'finished';
-  question_index: number | null;
+  currentQuestion: Question | null;
 }
 
-interface UserSession {
-  nickname: string | null;
-  id: string | null; 
-  type: string | null;
-};
-
-interface UserAnswer {
-  userId: string;
-  answer: string;
-  zScore?: number;
-  timestamp: number;
-}
-
-const fetchUserNicknames = async (userIds: string[]) => {
-  const {data, error} = await supabase
-    .from('users')
-    .select('id, nickname')
-    .in('id', userIds);
-
-  if (error) {
-    console.error('Error fetching user nicknames:', error);
-    return {};
-  }
-
-  return data.reduce((acc, user) => ({...acc, [user.id]: user.nickname}), {});
-};
-
-export default function GamePage() {
-  const [question, setQuestion] = useState<Question | null>(null);
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
-  const [correctAnswers, setCorrectAnswers] = useState(0);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [time, setTime] = useState(0);
-  const [isTimed, setIsTimed] = useState(false);
-  const [timeExpired, setTimeExpired] = useState(false);
-  const [userAnswer, setUserAnswer] = useState<UserAnswer | null>(null);
-  const [gameSession, setGameSession] = useState<GameSession | null>(null);
-  const {gameId} = useParams();
-  const router = useRouter();
-  const [numericalAnswers, setNumericalAnswers] = useState<UserAnswer[]>([]);
-  const [overallRanking, setOverallRanking] = useState<{ userId: string; score: number; }[]>([]); // Overall ranking
-  const [questionRanking, setQuestionRanking] = useState<{ userId: string; score: number; timestamp: number; }[]>([]); // Question ranking
-  const session = JSON.parse(localStorage.getItem('userSession') || '{}');
-  const [sessionLoaded, setSessionLoaded] = useState(false);
-  const [isNumericalAnswerSubmitted, setIsNumericalAnswerSubmitted] = useState(false);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
-  const [sessionData, setSessionData] = useState<UserSession | null>(null);
-  const [userNicknames, setUserNicknames] = useState<{ [userId: string]: string }>({});
-  const {toast} = useToast();
+const GamePage = () => {
+  const { gameId } = useParams();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [gameSession, setGameSession] = useState<GameSessionData | null>(null);
 
   useEffect(() => {
-    if (!gameId) return;
+    const fetchGameSession = async () => {
+      setLoading(true);
+      setError(null);
 
-    const fetchSessionAndQuestions = async () => {
-      const {data: session, error: sessionError} = await supabase
-        .from('game_sessions')
-        .select('*')
-        .eq('id', gameId)
-        .single();
-
-      if (sessionError) {
-        console.error("Error fetching session:", sessionError);
+      if (!gameId || typeof gameId !== 'string') {
+        setError('Invalid game ID');
+        setLoading(false);
         return;
       }
 
-      if (!session) {
-        console.error("Session not found");
-        return;
-      }
-
-      setGameSession(session);
-      setIsTimed(session.timePerQuestionInSec > 0);
-
-      const {data: fetchedQuestions, error: questionsError} = await supabase
-        .from('questions')
-        .select('*')
-        .eq('groupId', session.questionGroupId);
-
-      if (questionsError) {
-        console.error("Error fetching questions:", questionsError);
-        return;
-      }
-
-      setQuestions(fetchedQuestions || []);
-      if (fetchedQuestions && fetchedQuestions.length > 0) {
-        // Fetch the question index from the game session
-        const initialQuestionIndex = session.question_index !== null ? session.question_index : 0;
-        setCurrentQuestionIndex(initialQuestionIndex);
-        setQuestion(fetchedQuestions[initialQuestionIndex] || null);
-      }
-    };
-
-    fetchSessionAndQuestions();
-
-    const loadSession = async () => {
-      // ... your session loading logic ...
-      const userSession = session;
-      setSessionData(userSession);
-      setSessionLoaded(true);
-    };
-    loadSession();
-
-    // Example of redirecting if no session or handling different user types
-    if (!sessionData) {
-      router.push("/"); // Redirect to home if no session
-    }
-
-      
-  }, [gameId]);
-
-  useEffect(() => {
-    if (gameSession && gameSession.status !== 'active') {
-      router.push('/player');
-    }
-  }, [gameSession, router]);
-
-  useEffect(() => {
-    if (isTimed && question) {
-      setTime(gameSession?.timePerQuestionInSec || 0);
-      setTimeExpired(false); // Reset timeExpired when a new question is loaded
-
-      const timerId = setInterval(() => {
-        setTime(prevTime => {
-          if (prevTime <= 0) {
-            clearInterval(timerId);
-            setTimeExpired(true);
-            handleSubmitAnswer();
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timerId);
-    }
-  }, [question, isTimed, gameSession]);
-
-    useEffect(() => {
-    // Collect unique user IDs from overallRanking and questionRanking
-    const userIds = new Set<string>();
-    overallRanking.forEach(user => userIds.add(user.userId));
-    questionRanking.forEach(user => userIds.add(user.userId));
-
-    // Fetch nicknames for these user IDs
-      const getUserNicknames = async () => {
-        const nicknames = await fetchUserNicknames(Array.from(userIds));
-        setUserNicknames(nicknames);
-      };
-      getUserNicknames();
-  }, [overallRanking, questionRanking]);
-
-  const handleAnswer = (answer: string) => {
-    setSelectedAnswer(answer);
-  };
-
-  const calculateMultipleChoiceScore = () => {
-    if (timeExpired) {
-      return 0;
-    }
-
-    return time;
-  };
-
-  const calculateNumericalScore = (answer: string) => {
-    if (!question || question.correctNumber === null) return 0;
-
-    const correctAnswer = question.correctNumber;
-    const userAnswerValue = parseFloat(answer);
-
-    if (isNaN(userAnswerValue)) return 0;
-
-    const zScore = Math.abs(correctAnswer - userAnswerValue);
-
-    setUserAnswer({
-      userId: session.id,
-      answer: answer,
-      zScore: zScore,
-      timestamp: Date.now(),
-    });
-
-    return zScore;
-  };
-
-  const updateQuestionIndex = async (nextIndex: number) => {
-    try {
-      const { error: updateError } = await supabase
-        .from('game_sessions')
-        .update({ question_index: nextIndex })
-        .eq('id', gameId);
-
-      if (updateError) {
-        console.error("Error updating question index:", updateError);
-      }
-    } catch (error) {
-      console.error("Unexpected error:", error);
-    }
-  };
-
-  const handleSubmitAnswer = () => {
-    if (!question) return;
-
-    let score = 0;
-    if (question.questionType === 'multipleChoice') {
-      const isCorrect = selectedAnswer === question.correctAnswer;
-      score = isCorrect ? calculateMultipleChoiceScore() : 0;
-      updateOverallRanking(session.id, score); // Update overall ranking for multiple choice
-      handleNextQuestion();
-    } else if (question.questionType === 'numerical') {
-      score = calculateNumericalScore(selectedAnswer);
-    }
-
-    submitAnswer(score);
-  };
-
-  const submitAnswer = async (score: number) => {
-    if (!question) return;
-
-    if (question.questionType === 'numerical') {
-      setTimeExpired(true);
-      setIsNumericalAnswerSubmitted(true);
-      setNumericalAnswers(prevAnswers => {
-        const newAnswers = [...prevAnswers, userAnswer];
-        return newAnswers;
-      });
-    } else {
-      handleNextQuestion();
-    }
-  };
-
-  const updateOverallRanking = (userId: string, score: number) => {
-    setOverallRanking(prevRanking => {
-      const existingUserIndex = prevRanking.findIndex(entry => entry.userId === userId);
-
-      if (existingUserIndex !== -1) {
-        const updatedRanking = [...prevRanking];
-        updatedRanking[existingUserIndex] = {
-          ...updatedRanking[existingUserIndex],
-          score: updatedRanking[existingUserIndex].score + score,
-        };
-        return updatedRanking;
-      } else {
-        return [...prevRanking, { userId, score }];
-      }
-    });
-  };
-
-  useEffect(() => {
-    if (timeExpired && question?.questionType === 'numerical' && numericalAnswers.length > 0 && isNumericalAnswerSubmitted) {
-      const sortedAnswers = [...numericalAnswers].sort((a, b) => {
-        if (a.zScore !== b.zScore) {
-          return (a.zScore || 0) - (b.zScore || 0);
-        }
-        return a.timestamp - b.timestamp;
-      });
-
-      const newQuestionRanking = sortedAnswers.map((answer, index) => ({
-        userId: answer.userId,
-        score: (sortedAnswers.length - index) * 2,
-        timestamp: answer.timestamp,
-      }));
-
-      setQuestionRanking(newQuestionRanking);
-
-      newQuestionRanking.forEach(answer => {
-        updateOverallRanking(answer.userId, answer.score); // Update overall ranking for numerical
-      });
-
-      handleNextQuestion();
-      setIsNumericalAnswerSubmitted(false);
-    }
-  }, [timeExpired, numericalAnswers, question, session, isNumericalAnswerSubmitted]);
-
-  const handleNextQuestion = () => {
-    setSelectedAnswer('');
-    setTime(gameSession?.timePerQuestionInSec || 0);
-    setTimeExpired(false);
-    setUserAnswer(null);
-    setNumericalAnswers([]);
-    setQuestionRanking([]);
-
-    setCurrentQuestionIndex(prevIndex => {
-      const nextIndex = prevIndex + 1;
-      if (nextIndex < questions.length) {
-        setQuestion(questions[nextIndex]);
-        updateQuestionIndex(nextIndex); // Update the question index in the database
-        return nextIndex;
-      } else {
-        setQuestion(null);
-        return prevIndex;
-      }
-    });
-  };
-
-  const results = {
-    correct: correctAnswers,
-    total: questions.length,
-    percentage: questions.length > 0 ? (correctAnswers / questions.length) * 100 : 0,
-  };
-
-  const isAdminObserver = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('game_sessions')
-        .select('id')
-        .eq('id', gameId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching game session:', error);
-        return false;
-      };
-
-      // Check if the admin is the only one in the session
-      return !!data?.id;
-    } catch (error) {
-      console.error('Unexpected error fetching game session:', error);
-      return false;
-    };
-  };
-
-  useEffect(() => {
-    async function checkIfAdminObserver() {
-      const observerStatus = await isAdminObserver();
-    };
-    
-    checkIfAdminObserver();
-  }, [gameId]);
-  
-  const handleNextAdminQuestion = async () => {
-    if (!gameId) return;
-
-    try {
-      if (gameSession?.question_index === null) return;
-
-      const nextIndex = gameSession?.question_index + 1;
-
-      if (nextIndex < questions.length) {
-        const { error: updateError } = await supabase
+      try {
+        // Fetch game session data
+        const { data: sessionData, error: sessionError } = await supabase
           .from('game_sessions')
-          .update({ question_index: nextIndex })
-          .eq('id', gameId);
+          .select('*')
+          .eq('id', gameId)
+          .single();
 
-        if (updateError) {
-          console.error("Error updating question index:", updateError);
+        if (sessionError) {
+          console.error('Error fetching game session:', sessionError);
+          setError('Failed to fetch game session');
+          setLoading(false);
           return;
         }
 
-        setQuestion(questions[nextIndex]);
-      } else {
-        console.log("No more questions");
-        setQuestion(null);
-      }
-    } catch (error) {
-      console.error("Unexpected error:", error);
-    }
-  };
-
-  const handleStartGame = async () => {
-    try {
-      const { error: updateError } = await supabase
-        .from('game_sessions')
-        .update({ status: 'active' })
-        .eq('id', gameId);
-
-      if (updateError) {
-        console.error("Error starting game session:", updateError);
-        toast({
-          title: "Error",
-          description: "Failed to start game session.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Success",
-        description: "Game session started successfully.",
-      });
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      toast({
-        title: "Error",
-        description: "Unexpected error starting game session.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (!sessionLoaded || !sessionData?.type) {
-    return <div>Loading or Invalid Session...</div>;
-  }
-
-  const isAdmin = sessionData.type === 'admin';
-  return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isAdmin={isAdmin} sessionId={gameId} />;
-}
-
-
-const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, sessionId }) => {
-  const router = useRouter();
-  const {toast} = useToast();
-  const [connectedPlayers, setConnectedPlayers] = useState<{ [userId: string]: number }>({});
-  const [userNicknames, setUserNicknames] = useState<{ [userId: string]: string }>({});
-
-    useEffect(() => {
-      const fetchPlayersAndNicknames = async () => {
-        if (!gameId) return;
-
-        // Fetch connected players from Redis
-        const {data: redisData, error: redisError} = await supabase
-          .from('redis')
-          .select('value')
-          .eq('key', gameId)
-          .maybeSingle();
-
-        if (redisError) {
-          console.error('Error fetching Redis data:', redisError);
-          toast({
-            title: "Error",
-            description: "Failed to fetch connected players.",
-            variant: "destructive",
-          });
+        if (!sessionData) {
+          setError('Game session not found');
+          setLoading(false);
           return;
         }
 
-        let players: { [userId: string]: number } = {};
-        if (redisData && redisData.value) {
-          try {
-            players = JSON.parse(redisData.value);
-            setConnectedPlayers(players);
-          } catch (parseError) {
-            console.error('Error parsing Redis data:', parseError);
-            toast({
-              title: "Error",
-              description: "Failed to parse connected players data.",
-              variant: "destructive",
-            });
-            return;
+        setGameSession(sessionData);
+
+        // Determine admin status from localStorage
+        const storedSession = localStorage.getItem('userSession');
+        if (storedSession) {
+          const userSession = JSON.parse(storedSession);
+          if (userSession.type === 'admin') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
           }
         } else {
-          setConnectedPlayers({});
+          setIsAdmin(false);
         }
 
-        // Fetch user IDs from overallRanking and questionRanking
-        const userIds = new Set<string>();
-        overallRanking.forEach(user => userIds.add(user.userId));
-        questionRanking.forEach(user => userIds.add(user.userId));
-
-        // Add connected players to the user IDs
-        Object.keys(players).forEach(userId => userIds.add(userId));
-
-        // Fetch nicknames for all user IDs
-        const nicknames = await fetchUserNicknames(Array.from(userIds));
-        setUserNicknames(nicknames);
-      };
-
-      fetchPlayersAndNicknames();
-    }, [gameId, overallRanking, questionRanking]);
-
-  const handleStartGameAction = async () => {
-    try {
-      const { error: updateError } = await supabase
-        .from('game_sessions')
-        .update({ status: 'active' })
-        .eq('id', gameId);
-
-      if (updateError) {
-        console.error("Error starting game session:", updateError);
-        toast({
-          title: "Error",
-          description: "Failed to start game session.",
-          variant: "destructive",
-        });
-        return;
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError('An unexpected error occurred');
+      } finally {
+        setLoading(false);
       }
+    };
 
-      toast({
-        title: "Success",
-        description: "Game session started successfully.",
-      });
-    } catch (error) {
-      console.error("Unexpected error:", error);
-      toast({
-        title: "Error",
-        description: "Unexpected error starting game session.",
-        variant: "destructive",
-      });
-    }
-  };
+    fetchGameSession();
+  }, [gameId]);
 
-  const title = sessionData.type === 'admin' ? "Admin Game Page" : "Player Game Page";
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
-    return (
-        <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
-            <div className="absolute top-4 left-4">
-        <Button
-          variant="outline"
-          className="h-10 w-10 p-0 bg-black border-gray-500 text-white rounded-full"
-          onClick={() => router.push('/admin')}
-        >
-          <ArrowLeft
-            className="h-6 w-6"
-            aria-hidden="true"
-          />
-        </Button>
-            </div>
-          <h1 className="text-4xl font-bold mb-8 mt-10">{title}</h1>
-            <div className="mb-8">{isTimed && question && <TimerDisplay time={time}/>}</div>
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
 
+  if (!gameSession) {
+    return <div>Game session not found.</div>;
+  }
 
-      <div className="flex w-full max-w-6xl justify-between space-x-8 px-4">
-          {/* Overall Ranking Table */}
+  return (
+    <div className="game-page-container bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+      <h1 className="text-3xl font-bold mb-8">Game Session: {gameSession.sessionName}</h1>
 
-        <Card className="w-1/3">
-          <CardHeader>
-            <CardTitle>Overall Ranking</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead className="text-right">Score</TableHead>
-                </TableRow> 
-              </TableHeader>
-              <TableBody>
-                {overallRanking.sort((a, b) => b.score - a.score).map((user) => (
-                  <TableRow key={user.userId}>
-                    <TableCell>{userNicknames[user.userId] || user.userId}</TableCell>
-                    <TableCell>{user.score}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-          {/* Main Content Area */}
-          <div className="flex flex-col items-center w-1/3 space-y-4">
-              {/* Question Display */}
-          {question ? (
-            <>
-              <FunFactGenerator topics={[question.questionText]} />
-              <QuestionDisplay question={question.questionText} />
-              {question.questionType === 'multipleChoice' ? (
-                <>
-                  <AnswerInput
-                    options={question.answers}
-                    onAnswer={handleAnswer}
-                    selectedAnswer={selectedAnswer}
-                    onSubmit={handleSubmitAnswer}
-                    disabled={timeExpired}
-                  />
-                  {timeExpired && <div>Time's up!</div>}
-                </>
-              ) : (
-                <div>
-                  <input
-                    type="number"
-                    value={selectedAnswer}
-                    onChange={(e) => handleAnswer(e.target.value)}
-                    placeholder="Enter your answer"
-                    disabled={timeExpired}
-                  />
-                  <Button onClick={handleSubmitAnswer} disabled={timeExpired}>Submit Answer</Button>
-                  {timeExpired && <div>Time's up!</div>}
-                </div>
-              )}
-            </>
-          ) : (
-            <ResultsDisplay results={results} />
-          )}
-              {sessionData.type === 'admin' && (
-                  <div className="flex space-x-4 mt-4">
-                      <Button onClick={handleNextAdminQuestion} variant="outline">
-                              Next Question
-                          </Button>
-                      {gameSession?.status !== 'active' &&
-                          <Button onClick={handleStartGameAction}>
-                              Start Game
-                          </Button>
-                      }
-                  </div>
-              )}
-          )}
-        </div>
-
-        {/* Question Ranking Table */}
-        <Card className="w-1/3">
-          <CardHeader>
-            <CardTitle>Question Ranking</CardTitle>
-            <CardDescription>Ranking for the current question</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead className="text-right">Score</TableHead>
-                </TableRow> 
-              </TableHeader>
-              <TableBody>
-                {questionRanking.sort((a, b) => b.score - a.score).map((user) => (
-                    <TableRow key={user.userId}>
-                    <TableCell>{userNicknames[user.userId] || user.userId}</TableCell>
-                    <TableCell>{user.score}</TableCell>
-                  </TableRow> 
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      {/* Question Area */}
+      <div className="question-area bg-gray-800 p-6 rounded-lg shadow-md mb-8 w-full max-w-2xl text-center">
+        <h2 className="text-xl font-semibold mb-4">Question</h2>
+        {gameSession.currentQuestion && (
+          <p className="text-lg">{gameSession.currentQuestion.text}</p>
+        )}
       </div>
-    </div>
-  );
 
-    }
-const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, sessionId }) => {
-  // ... component logic ...
+      {/* Answer Choices Area */}
+      <div className="answer-choices-area grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+        {gameSession.currentQuestion &&
+          gameSession.currentQuestion.answers.map((answer:Answer, index:number) => (
+            <button
+              key={index}
+              className={`answer-button bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-lg transition-colors duration-200 ${
+                isAdmin && answer.isCorrect ? 'bg-green-500 hover:bg-green-600' : ''
+              }`}
+              disabled={isAdmin} // Disable answer buttons for admin
+            >
+              {answer.text}
+                {isAdmin && answer.isCorrect && <span className='text-green-300'> (Correct Answer)</span>}
+            </button>
+          ))}
+      </div>
+
+        {/* Admin/Player View */}
+        {isAdmin ? (
+            <div className="mt-8 text-center">
+                <h2 className="text-2xl font-bold">Admin View</h2>
+                {/* Add admin controls here */}
+            </div>
+        ) : (
+            <div className="mt-8 text-center">
+                <h2 className="text-2xl font-bold">Player View</h2>
+                {/* Add player information and participation details here */}
+            </div>
+        )}
+
+    </div>
+
+  );
 };
+
+export default GamePage;
 

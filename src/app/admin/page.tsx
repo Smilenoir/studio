@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import {QuestionEditor} from '@/components/question-editor';
 import {Dashboard} from '@/components/dashboard';
@@ -8,10 +9,31 @@ import {GameSessions} from "@/components/game-sessions";
 import {Button} from "@/components/ui/button";
 import {ArrowLeft} from "lucide-react";
 import {useRouter} from "next/navigation";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table";
 import {Users} from "@/components/users";
+
+interface GameSession {
+  id: string;
+  sessionName: string;
+  // Add other properties as needed
+}
 
 export default function AdminPage() {
   const router = useRouter();
+  // Placeholder data for game sessions table
+  const [sessions, setSessions] = useState<GameSession[]>([
+    { id: "session1", sessionName: "Session One" },
+    { id: "session2", sessionName: "Session Two" },
+    { id: "session3", sessionName: "Session Three" },
+  ]);
+
+  const handleTakeControl = (gameId: string) => {
+    router.push(`/game/${gameId}`);
+  };
+
+
+
+
   return (
     <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
       <div className="absolute bottom-4 left-4">
@@ -37,7 +59,29 @@ export default function AdminPage() {
         </TabsList>
         <TabsContent value="dashboard" className="mt-4">
           <Dashboard />
-        </TabsContent>
+        </TabsContent>       
+         <TabsContent value="sessions" className="mt-4">
+            <GameSessions />
+            {/* Placeholder for Game Sessions Table */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Session ID</TableHead>
+                  <TableHead>Session Name</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sessions.map((session) => (
+                  <TableRow key={session.id}>
+                    <TableCell>{session.id}</TableCell>
+                    <TableCell>{session.sessionName}</TableCell>
+                    <TableCell><Button onClick={() => handleTakeControl(session.id)}>Take Control</Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
         <TabsContent value="sessions" className="mt-4">
           <GameSessions />
         </TabsContent>
