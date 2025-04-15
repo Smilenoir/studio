@@ -371,7 +371,7 @@ export const GameSessions = () => {
               variant: "destructive",
               title: "Error",
               description: "Failed to restart session."
-          });
+              });
       }
   };
 
@@ -382,121 +382,153 @@ export const GameSessions = () => {
   return (
     
       {/* Session Creation Form */}
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>Create Game Session</CardTitle>
-          <CardDescription>Configure and create a new game session.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="sessionName">Session Name</Label>
-            <Input
+      
+        
+          
+            Create Game Session
+          
+          
+            Configure and create a new game session.
+          
+        
+        
+          
+            
+              Session Name
+            
+            
               type="text"
               id="sessionName"
               name="sessionName"
               value={newSession.sessionName}
               onChange={handleInputChange}
               placeholder="Enter session name"
-            />
-          </div>
+            
+          
+          
 
-          <div className="grid gap-2">
-            <Label htmlFor="maxPlayers">Max Players ({newSession.maxPlayers})</Label>
-            <Slider
+          
+            
+              Max Players ({newSession.maxPlayers})
+            
+            
               defaultValue={[5]}
               max={30}
               min={1}
               step={1}
               onValueChange={value => handleSliderChange(value as number[])}
-            />
-          </div>
+            
+          
+          
 
-          <div className="grid gap-2">
-            <Label htmlFor="questionGroupId">Question Group</Label>
-            <Select onValueChange={handleSelectChange}>
-              <SelectTrigger id="questionGroupId">
-                <SelectValue placeholder="Select a question group">
+          
+            
+              Question Group
+            
+            
+              
+                
                   {availableGroups.find(group => group.id === newSession.questionGroupId)?.name || "Select a group"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
+                
+              
+              
                 {availableGroups.map(group => (
-                  <SelectItem key={group.id} value={group.id}>
+                  
                     {group.name}
-                  </SelectItem>
+                  
                 ))}
-              </SelectContent>
-            </Select>
-          </div>
+              
+            
+          
+          
 
-          <div className="grid gap-2">
-            <Label htmlFor="timePerQuestionInSec">Time per Question (seconds) ({newSession.timePerQuestionInSec === 0 ? '∞' : newSession.timePerQuestionInSec})</Label>
-            <Slider
+          
+            
+              Time per Question (seconds) ({newSession.timePerQuestionInSec === 0 ? '∞' : newSession.timePerQuestionInSec})
+            
+            
                 defaultValue={[0]}
                 max={60}
                 min={0}
                 step={1}
                 onValueChange={value => handleTimeSliderChange(value as number[])}
-            />
-          </div>
+            
+          
+          
 
-          <Button type="button" onClick={editingSessionId ? updateSession : addSession}>
+          
             {editingSessionId ? 'Update Session' : 'Create Session'}
-          </Button>
-        </CardContent>
-      </Card>
+          
+        
+      
 
       {/* Session List */}
-      <Card className="w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>Existing Sessions</CardTitle>
-          <CardDescription>Manage existing game sessions.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      
+        
+          
+            Existing Sessions
+          
+          
+            Manage existing game sessions.
+          
+        
+        
           {sessions.length === 0 ? (
-            <div>No sessions created yet.</div>
+            
+              No sessions created yet.
+            
           ) : (
             
               {sessions.map(session => (
-                <Card key={session.id}>
-                  <CardHeader>
-                    <CardTitle>{session.sessionName}</CardTitle>
-                    <CardDescription>
+                
+                  
+                    
+                      {session.sessionName}
+                    
+                    
                       Players: {`${0}/${session.maxPlayers}`}
-                    </CardDescription>
-                    <CardDescription>Status: {session.status}</CardDescription>
-                    <CardDescription>Question Group: {getGroupName(session.questionGroupId)}</CardDescription>
-                    <CardDescription>
+                    
+                    
+                      Status: {session.status}
+                    
+                    
+                      Question Group: {getGroupName(session.questionGroupId)}
+                    
+                    
                         Time per Question: {session.timePerQuestionInSec === 0 ? '∞' : session.timePerQuestionInSec} seconds
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex gap-2">
-                    <Button size="sm" onClick={() => startEditing(session.id)}>Edit</Button>
-                    <Button size="sm" onClick={() => restartSession(session.id)}>Restart</Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive">Delete</Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the session and remove its data.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => deleteSession()}>Continue</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </CardContent>
-                </Card>
+                    
+                  
+                  
+                    
+                      Edit
+                    
+                    
+                      Restart
+                    
+                    
+                      
+                        
+                          Are you absolutely sure?
+                        
+                        
+                          This action cannot be undone. This will permanently delete the session and remove its data.
+                        
+                      
+                      
+                        Cancel
+                        
+                          Continue
+                        
+                      
+                    
+                  
+                
               ))}
             
           )}
-        </CardContent>
-      </Card>
+        
+      
     
   );
 };
+
