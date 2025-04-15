@@ -36,6 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label";
 
 interface GameSession {
   id: string;
@@ -167,49 +168,6 @@ export const Dashboard = () => {
     const getGroupName = (groupId: string) => {
         return availableGroups.find(group => group.id === groupId)?.name || 'Unknown Group';
     };
-
-  const startGameSession = async (sessionId: string) => {
-      try {
-          const {error} = await supabase
-              .from('game_sessions')
-              .update({status: 'active'})
-              .eq('id', sessionId)
-              .select();
-
-          if (error) {
-              console.error('Error starting game session:', JSON.stringify(error));
-              toast({
-                  variant: "destructive",
-                  title: "Error",
-                  description: "Failed to start game session."
-              });
-              return;
-          }
-
-          // Optimistically update the UI
-          setActiveSessions(prevSessions =>
-              prevSessions.map(session =>
-                  session.id === sessionId ? {...session, status: 'active'} : session
-              )
-          );
-
-          toast({
-              title: "Success",
-              description: "Game session started successfully."
-          });
-
-          // Redirect the admin to the game session page
-          router.push(`/game/${sessionId}`);
-
-      } catch (error) {
-          console.error('Unexpected error starting game session:', JSON.stringify(error));
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Unexpected error starting game session."
-          });
-      }
-  };
 
   const confirmRestartSession = (sessionId: string) => {
     setRestartingSessionId(sessionId);
@@ -543,5 +501,3 @@ export const Dashboard = () => {
     </div>
   );
 };
-
-
