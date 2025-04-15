@@ -613,7 +613,7 @@ const GamePage = () => {
     const title = isAdmin ? 'Admin Game Page' : 'Player Game Page';
 
     return (
-        <div className="game-page-container bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="game-page-container bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
             <div className="absolute bottom-4 left-4">
                 <Button
                     variant="outline"
@@ -626,7 +626,7 @@ const GamePage = () => {
                     />
                 </Button>
             </div>
-            <h1 className="text-3xl font-bold mb-4">{title}</h1>
+            <h1 className="text-3xl font-bold mb-4 mt-4">{title}</h1>
 
             {isAdmin ? (
                 <div className="mt-8 text-center">
