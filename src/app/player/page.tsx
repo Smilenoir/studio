@@ -33,6 +33,7 @@ interface GameSession {
   createdAt: string;
   status: 'waiting' | 'active' | 'finished';
   players: string[];
+  question_index: number | null;
 }
 
 interface UserSession {
@@ -54,7 +55,7 @@ export default function PlayerPage() {
   const { toast } = useToast();
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
   const [playersInLobby, setPlayersInLobby] = useState<string[]>([]);
-
+  const [lobbyGameSession, setLobbyGameSession] = useState<GameSession | null>(null); // Add game session for the lobby
 
   useEffect(() => {
     fetchGameSessions();
@@ -403,12 +404,56 @@ export default function PlayerPage() {
         return;
       }
 
+      setJoinedSessionId(sessionId);
+      setLobbyGameSession(gameSession); // Store game session in state
+
+
+      toast({
+        title: "Success",
+        description: "Successfully joined the game!",
+      });
+
       // Fetch usernames for the lobby
-      const fetchLobbyUsernames = async () => {
+      fetchLobbyUsernames(sessionId);
+      await fetchGameSessions();
+
+       // Subscribe to changes in the Redis data
+       supabase
+       .channel('redis-changes')
+       .on(
+         'postgres_changes',
+         { event: '*', schema: 'public', table: 'redis', filter: `key=eq.${redisKey}` },
+         payload => {
+           console.log('Change received!', payload)
+           fetchLobbyUsernames(sessionId);
+         }
+       )
+       .subscribe()
+
+
+    } catch (error: any) {
+      let errorMessage = "Unexpected error joining game.";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.error?.message) {
+        errorMessage = error.error.message;
+      } else if (error.data?.message) {
+        errorMessage = error.data.message;
+      }
+      console.error('Unexpected error joining game:', error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      })
+    }
+  };
+
+  const fetchLobbyUsernames = async (sessionId: string) => {
         const { data: redisData, error: redisError } = await supabase
           .from('redis')
           .select('value')
-          .eq('key', redisKey)
+          .eq('key', sessionId)
           .maybeSingle();
 
         if (redisError) {
@@ -456,33 +501,88 @@ export default function PlayerPage() {
         }
       };
 
-      await fetchLobbyUsernames();
-      await fetchGameSessions();
+      const leaveLobby = async () => {
+        if (!session.id || !joinedSessionId) {
+          toast({
+            title: "Error",
+            description: "Cannot leave lobby: No session or game joined.",
+            variant: "destructive",
+          });
+          return;
+        }
 
-      toast({
-        title: "Success",
-        description: "Successfully joined the game!",
-      });
+        try {
+          // Fetch the current Redis value
+          const { data: redisData, error: redisError } = await supabase
+            .from('redis')
+            .select('value')
+            .eq('key', joinedSessionId)
+            .maybeSingle();
 
-      setJoinedSessionId(sessionId);
+          if (redisError) {
+            console.error('Error fetching Redis data:', redisError);
+            toast({
+              title: "Error",
+              description: "Failed to leave lobby (fetch data).",
+              variant: "destructive",
+            });
+            return;
+          }
 
-    } catch (error: any) {
-      let errorMessage = "Unexpected error joining game.";
-      if (error.message) {
-        errorMessage = error.message;
-      } else if (error.error?.message) {
-        errorMessage = error.error.message;
-      } else if (error.data?.message) {
-        errorMessage = error.data.message;
-      }
-      console.error('Unexpected error joining game:', error);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
-      })
-    }
-  };
+          if (redisData && redisData.value) {
+            let players = {};
+            try {
+              // Parse the JSON and remove the player
+              players = JSON.parse(redisData.value);
+              delete players[session.id];
+            } catch (parseError) {
+              console.error('Error parsing Redis data:', parseError);
+              toast({
+                title: "Error",
+                description: "Failed to leave lobby (parse error).",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            // Update Redis with the new player data (player removed)
+            const { error: updateError } = await supabase
+              .from('redis')
+              .update({ key: joinedSessionId, value: JSON.stringify(players) })
+              .eq('key', joinedSessionId);
+
+            if (updateError) {
+              console.error('Error updating Redis:', updateError);
+              toast({
+                title: "Error",
+                description: "Failed to leave lobby (update Redis).",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            // Clear local states and unsubscribe
+            setPlayersInLobby(prevPlayers => prevPlayers.filter(player => player !== session.nickname));
+            setJoinedSessionId(null);
+            setLobbyGameSession(null);
+
+            toast({
+              title: "Success",
+              description: "Left the lobby successfully!",
+            });
+
+             // Unsubscribe from changes
+             supabase.removeChannel('redis-changes');
+          }
+        } catch (error: any) {
+          console.error('Unexpected error leaving lobby:', error);
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      };
 
   useEffect(() => {
     const checkGameStatus = async () => {
@@ -639,6 +739,16 @@ export default function PlayerPage() {
         // Lobby screen
         <div className="container mx-auto max-w-4xl mt-8">
           <h2 className="text-2xl font-semibold mb-4">Waiting for Game to Start</h2>
+          {lobbyGameSession && (
+            <Card className="border mb-4">
+              <CardHeader>
+                <CardTitle>{lobbyGameSession.sessionName}</CardTitle>
+                <CardDescription>
+                  {getPlayersInSession(joinedSessionId).length}/{lobbyGameSession.maxPlayers} Players | Time per Question: {lobbyGameSession.timePerQuestionInSec === 0 ? '∞' : `${lobbyGameSession.timePerQuestionInSec} seconds`}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
           <Card className="border">
             <CardHeader>
               <CardTitle>Players in Lobby</CardTitle>
@@ -657,6 +767,7 @@ export default function PlayerPage() {
                   </div>
                 </div>
               ))}
+              <Button onClick={leaveLobby}>Leave Lobby</Button>
             </CardContent>
           </Card>
         </div>
@@ -721,5 +832,4 @@ export default function PlayerPage() {
     </div>
   );
 }
-
 
