@@ -13,6 +13,7 @@ import { LogOut } from "lucide-react";
 interface UserSession {
   nickname: string | null;
   id: string | null;
+  type: string | null;
 }
 
 export default function Home() {
@@ -20,11 +21,12 @@ export default function Home() {
     const [nickname, setNickname] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [session, setSession] = useState<UserSession>({nickname: null, id: null});
+    const [session, setSession] = useState<UserSession>({nickname: null, id: null, type: null});
     const [alertOpen, setAlertOpen] = useState(false);
     const [alertTitle, setAlertTitle] = useState<string | null>(null);
     const [alertDescription, setAlertDescription] = useState<string | null>(null);
     const {toast} = useToast();
+    const [userType, setUserType] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -96,9 +98,9 @@ export default function Home() {
                 return;
             }
 
-            const {error: insertError} = await supabase
+            const {error: insertError, data: newUser} = await supabase
                 .from('users')
-                .insert({nickname, password, created_at: new Date().toISOString()})
+                .insert({nickname, password, created_at: new Date().toISOString(), type: 'player'})
                 .select();
 
             if (insertError) {
@@ -123,14 +125,11 @@ export default function Home() {
             setAlertTitle('Success');
             setAlertDescription('User created successfully!');
 
+            // Clear input fields
+            setNickname('');
+            setPassword('');
 
-            const userSession: UserSession = {
-                nickname: nickname,
-                id: user.id,
-            };
-
-            setSession(userSession);
-            await saveSession(userSession);
+            //setUserType(newUser[0].type);
 
         } catch (error: any) {
             setAlertOpen(true);
@@ -198,6 +197,7 @@ export default function Home() {
             const userSession: UserSession = {
                 nickname: user.nickname,
                 id: user.id,
+                type: user.type,
             };
 
             setSession(userSession);
@@ -211,6 +211,7 @@ export default function Home() {
             setAlertOpen(true);
             setAlertTitle('Success');
             setAlertDescription('Signed in successfully!');
+
         } catch (error: any) {
             toast({
                 title: "Error",
@@ -227,7 +228,7 @@ export default function Home() {
         try {
             setLoading(true)
             await clearSession();
-            setSession({nickname: null, id: null});
+            setSession({nickname: null, id: null, type: null});
             toast({
                 title: "Success",
                 description: "Signed out successfully!"
@@ -353,11 +354,14 @@ export default function Home() {
       </AlertDialog>
 
       <div className="flex space-x-4 mt-4">
-        <Button onClick={() => router.push('/admin')}>Admin</Button>
-        <Button onClick={() => router.push('/player')}>Player</Button>
+          {session?.type === 'admin' && (
+              <Button onClick={() => router.push('/admin')}>Admin</Button>
+          )}
+          {session?.type === 'player' && (
+              <Button onClick={() => router.push('/player')}>Player</Button>
+          )}
       </div>
 
     </div>
   );
 }
-
