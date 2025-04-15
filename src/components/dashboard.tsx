@@ -26,18 +26,8 @@ import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
 import {useRouter} from "next/navigation";
 import {Edit, Trash, RefreshCcw, Eye} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 
 
 interface GameSession {
@@ -68,8 +58,6 @@ export const Dashboard = () => {
   const [editSessionOpen, setEditSessionOpen] = useState(false);
   const [editedSession, setEditedSession] = useState<Partial<GameSession>>({});
     const [playersInSession, setPlayersInSession] = useState<{ [key: string]: number }>({});
-    const [adminViewOpen, setAdminViewOpen] = useState(false);
-    const [selectedSession, setSelectedSession] = useState<GameSession | null>(null);
 
 
   useEffect(() => {
@@ -410,8 +398,7 @@ export const Dashboard = () => {
     }, []);
 
     const handleTakeControl = (session: GameSession) => {
-        setSelectedSession(session);
-        setAdminViewOpen(true);
+        router.push(`/game/${session.id}`);
     };
 
 
@@ -471,7 +458,7 @@ export const Dashboard = () => {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" onClick={() => confirmRestartSession(session.id)} variant="outline" disabled={session.status === 'waiting'}>
+                          <Button size="icon" variant="outline" onClick={() => confirmRestartSession(session.id)} disabled={session.status === 'waiting'}>
                             <RefreshCcw className="h-4 w-4"/>
                           </Button>
                         </AlertDialogTrigger>
@@ -514,24 +501,6 @@ export const Dashboard = () => {
           </TableBody>
         </Table>
       </div>
-      <Dialog open={adminViewOpen} onOpenChange={setAdminViewOpen}>
-          <DialogContent>
-              <DialogHeader>
-                  <DialogTitle>Admin View</DialogTitle>
-                  <DialogDescription>
-                      {selectedSession ? selectedSession.sessionName : 'No session selected'}
-                  </DialogDescription>
-              </DialogHeader>
-              {selectedSession && (
-                  <div>
-                      <p>Connected Players: {getConnectedPlayersCount(selectedSession.id)}/{selectedSession.maxPlayers}</p>
-                      <p>Session Status: {selectedSession.status}</p>
-                      <Button>Start Game</Button>
-                  </div>
-              )}
-          </DialogContent>
-      </Dialog>
     </div>
   );
 };
-
