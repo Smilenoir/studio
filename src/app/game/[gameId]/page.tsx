@@ -57,6 +57,19 @@ interface UserAnswer {
   timestamp: number;
 }
 
+const fetchUserNicknames = async (userIds: string[]) => {
+  const {data, error} = await supabase
+    .from('users')
+    .select('id, nickname')
+    .in('id', userIds);
+
+  if (error) {
+    console.error('Error fetching user nicknames:', error);
+    return {};
+  }
+
+  return data.reduce((acc, user) => ({...acc, [user.id]: user.nickname}), {});
+};
 
 export default function GamePage() {
   const [question, setQuestion] = useState<Question | null>(null);
@@ -139,21 +152,7 @@ export default function GamePage() {
       router.push("/"); // Redirect to home if no session
     }
 
-      const fetchUserNicknames = async (userIds: string[]) => {
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, nickname')
-          .in('id', userIds);
-
-        if (error) {
-          console.error('Error fetching user nicknames:', error);
-          return;
-        }
-
-        const nicknames = data.reduce((acc, user) => ({ ...acc, [user.id]: user.nickname }), {});
-        setUserNicknames(nicknames);
-      };
-
+      
   }, [gameId]);
 
   useEffect(() => {
@@ -190,7 +189,11 @@ export default function GamePage() {
     questionRanking.forEach(user => userIds.add(user.userId));
 
     // Fetch nicknames for these user IDs
-    fetchUserNicknames(Array.from(userIds));
+      const getUserNicknames = async () => {
+        const nicknames = await fetchUserNicknames(Array.from(userIds));
+        setUserNicknames(nicknames);
+      };
+      getUserNicknames();
   }, [overallRanking, questionRanking]);
 
   const handleAnswer = (answer: string) => {
@@ -620,3 +623,4 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
   );
 
     }
+
