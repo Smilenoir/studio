@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient'; // Assuming you have your Supabase client initialized here
+import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 import { generateId } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Users } from "@/components/users";
+import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play } from "lucide-react";
 
 interface UserSession {
     nickname: string | null;
@@ -81,13 +83,10 @@ const GamePage = () => {
 
     useEffect(() => {
         const loadSession = async () => {
-            // Replace this with your actual session loading logic
-            // For example, fetching from localStorage or a context
             const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
             setSessionData(userSession);
 
             if (userSession && userSession.id) {
-                // Fetch user data from Supabase to get the 'type'
                 const { data, error } = await supabase
                     .from('users')
                     .select('type')
@@ -613,57 +612,77 @@ const GamePage = () => {
     const title = isAdmin ? 'Admin Game Page' : 'Player Game Page';
 
     return (
-        <div className="game-page-container bg-gray-900 text-white min-h-screen flex flex-col items-center p-4">
-            <div className="absolute bottom-4 left-4">
-                <Button
-                    variant="outline"
-                    className="h-10 w-10 p-0 bg-black border-gray-500 text-white rounded-full"
-                    onClick={() => router.push('/')}
-                >
-                    <ArrowLeft
-                        className="h-6 w-6"
-                        aria-hidden="true"
-                    />
-                </Button>
-            </div>
-            <h1 className="text-3xl font-bold mb-4 mt-4">{title}</h1>
-
-            {isAdmin ? (
-                <div className="mt-8 text-center">
-                  <h2 className="text-2xl font-bold">Admin View</h2>
-                  {gameSession && (
-                    <div className="mb-4">
-                      <strong>Session Status:</strong> {gameSession.status}
-                    </div>
-                  )}
-                    {/* Display list of players in the session */}
-                    <div>
-                        <h2 className="text-xl font-semibold mb-4">Players in Session</h2>
-                        {playersInSession.length === 0 ? (
-                            <p>No players in this session.</p>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {playersInSession.map((player) => (
-                                    <div key={player.id} className="bg-gray-800 p-4 rounded-lg shadow-md">
-                                        <h3 className="text-lg font-semibold">{player.nickname}</h3>
-                                        {/* Display additional user details if needed */}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                  {gameSession?.status === 'waiting' ? (
-                      <Button onClick={handleStartGame}>Start Game</Button>
-                  ) : (
-                      <Button onClick={handleNextAdminQuestion}>Next Question</Button>
-                  )}
-                </div>
-            ) : (
-                <div className="mt-8 text-center">
-                    <h2 className="text-2xl font-bold">Player View</h2>
-                    {/* Add player information and participation details here */}
+        <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
+            {/* Left Menu */}
+            {isAdmin && (
+                <div className="w-64 p-4 flex flex-col">
+                    <Button variant="ghost" className="justify-start mb-2">
+                        <User className="mr-2 h-4 w-4" /> List Players
+                    </Button>
+                    <Button variant="ghost" className="justify-start mb-2">
+                        <BarChart className="mr-2 h-4 w-4" /> Game Results
+                    </Button>
+                    <Button variant="ghost" className="justify-start mb-2">
+                        <ListOrdered className="mr-2 h-4 w-4" /> Round Results
+                    </Button>
+                    <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
+                        <Play className="mr-2 h-4 w-4" /> Start Game
+                    </Button>
                 </div>
             )}
+            {/* Main Content */}
+            <div className="flex-1 p-4">
+                <div className="absolute bottom-4 left-4">
+                    <Button
+                        variant="outline"
+                        className="h-10 w-10 p-0 bg-black border-gray-500 text-white rounded-full"
+                        onClick={() => router.push('/')}
+                    >
+                        <ArrowLeft
+                            className="h-6 w-6"
+                            aria-hidden="true"
+                        />
+                    </Button>
+                </div>
+                <h1 className="text-3xl font-bold mb-4 mt-4">{title}</h1>
+
+                {isAdmin ? (
+                    <div className="mt-8 text-center">
+                        <h2 className="text-2xl font-bold">Admin View</h2>
+                        {gameSession && (
+                            <div className="mb-4">
+                                <strong>Session Status:</strong> {gameSession.status}
+                            </div>
+                        )}
+                        {/* Display list of players in the session */}
+                        <div>
+                            <h2 className="text-xl font-semibold mb-4">Players in Session</h2>
+                            {playersInSession.length === 0 ? (
+                                <p>No players in this session.</p>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {playersInSession.map((player) => (
+                                        <div key={player.id} className="bg-gray-800 p-4 rounded-lg shadow-md">
+                                            <h3 className="text-lg font-semibold">{player.nickname}</h3>
+                                            {/* Display additional user details if needed */}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        {gameSession?.status === 'waiting' ? (
+                            <Button onClick={handleStartGame}>Start Game</Button>
+                        ) : (
+                            <Button onClick={handleNextAdminQuestion}>Next Question</Button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="mt-8 text-center">
+                        <h2 className="text-2xl font-bold">Player View</h2>
+                        {/* Add player information and participation details here */}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
