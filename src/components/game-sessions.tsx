@@ -37,6 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { ArrowLeft, LogOut, Edit, Trash, Check, X, Plus } from "lucide-react";
 
 interface GameSession {
   id: string;
@@ -59,7 +60,7 @@ export const GameSessions = () => {
     sessionName: '',
     maxPlayers: 5,
     questionGroupId: '',
-    timePerQuestionInSec: 0,
+    timePerQuestionInSec: 20,
   });
 
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
@@ -68,7 +69,7 @@ export const GameSessions = () => {
   const [open, setOpen] = useState(false);
   const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
   const [playerCounts, setPlayerCounts] = useState<{ [sessionId: string]: number }>({});
-    const [addUserFormVisible, setAddUserFormVisible] = useState(false);
+  const [addUserFormVisible, setAddUserFormVisible] = useState(false);
 
   useEffect(() => {
     fetchGroups();
@@ -232,7 +233,7 @@ export const GameSessions = () => {
               sessionName: '',
               maxPlayers: 5,
               questionGroupId: '',
-              timePerQuestionInSec: 0,
+              timePerQuestionInSec: 20,
           });
           toast({
               title: "Success",
@@ -299,7 +300,7 @@ export const GameSessions = () => {
                 sessionName: '',
                 maxPlayers: 5,
                 questionGroupId: '',
-                timePerQuestionInSec: 0,
+                timePerQuestionInSec: 20,
             });
             toast({
                 title: "Success",
@@ -446,13 +447,31 @@ export const GameSessions = () => {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="timePerQuestionInSec">Time per Question (seconds) ({newSession.timePerQuestionInSec === 0 ? '∞' : newSession.timePerQuestionInSec})</Label>
-            <Slider
-                defaultValue={[0]}
-                max={60}
-                min={0}
-                step={1}
-                onValueChange={value => handleTimeSliderChange(value as number[])}
-            />
+            <div className="flex items-center space-x-2">
+              <Slider
+                  defaultValue={[20]}
+                  max={300}
+                  min={20}
+                  step={1}
+                  onValueChange={value => {
+                    handleTimeSliderChange(value as number[])
+                    setNewSession({...newSession, timePerQuestionInSec: value[0]})
+                  }}
+              />
+              <Input
+                  type="number"
+                  id="timePerQuestionInSec"
+                  name="timePerQuestionInSec"
+                  value={newSession.timePerQuestionInSec.toString()}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    if (!isNaN(value) && value >= 20 && value <= 300) {
+                      setNewSession({...newSession, timePerQuestionInSec: value});
+                    }
+                  }}
+                  className="w-24"
+              />
+            </div>
           </div>
           <Button onClick={addSession}>
             {editingSessionId ? 'Update Session' : 'Create Session'}
