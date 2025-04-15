@@ -441,13 +441,13 @@ export const GameSessions = () => {
                   {availableGroups.find(group => group.id === newSession.questionGroupId)?.name || "Select a group"}
                 
               
-              
+              <SelectContent>
                 {availableGroups.map((group) => (
                   <SelectItem key={group.id} value={group.id}>
                     {group.name}
                   </SelectItem>
                 ))}
-              
+              </SelectContent>
             
           
           
@@ -531,4 +531,5 @@ export const GameSessions = () => {
         </CardContent>
     </Card> </div> </>); };
       
+
 
