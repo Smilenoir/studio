@@ -186,7 +186,7 @@ export default function PlayerPage() {
 
 
       // Automatically sign in after successful creation
-      // handleSignIn();
+      handleSignIn();
 
     } catch (error: any) {
       setAlertOpen(true);
@@ -363,10 +363,18 @@ export default function PlayerPage() {
 
 
           if (updateError) {
-              console.error('Error joining game:', updateError);
+              let errorMessage = "Failed to join game.";
+              if (updateError.message) {
+                  errorMessage = updateError.message;
+              } else if (updateError.error?.message) {
+                  errorMessage = updateError.error.message;
+              } else if (updateError.data?.message) {
+                  errorMessage = updateError.data.message;
+              }
+              console.error('Error joining game:', errorMessage);
               toast({
                   title: "Error",
-                  description: "Failed to join game.",
+                  description: errorMessage,
                   variant: "destructive"
               });
               return;
@@ -637,4 +645,5 @@ export default function PlayerPage() {
     </div>
   );
 }
+
 
