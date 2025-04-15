@@ -20,6 +20,7 @@ import {Avatar, AvatarFallback, AvatarImage} from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {FunFactGenerator} from "@/components/fun-fact-generator";
 import { ArrowLeft } from "lucide-react";
+import {useToast} from "@/hooks/use-toast";
 
 interface Question {
   id: string;
@@ -28,6 +29,7 @@ interface Question {
   answers: string[];
   correctAnswer: string | null;
   correctNumber: number | null;
+  questionText: string;
 }
 
 interface GameSession {
@@ -343,7 +345,7 @@ export default function GamePage() {
     try {
       const { data, error } = await supabase
         .from('game_sessions')
-        .select('players');
+        .select('players')
         .eq('id', gameId)
         .single();
 
@@ -371,10 +373,10 @@ export default function GamePage() {
     };
     
     checkIfAdminObserver();
-  }, [sessionId]);
+  }, [gameId]);
   
   const handleNextAdminQuestion = async () => {
-    if (!sessionId) return;
+    if (!gameId) return;
 
     try {
       if (gameSession?.question_index === null) return;
@@ -439,10 +441,10 @@ export default function GamePage() {
 
   if (sessionData.type === 'admin') {
     // Render admin-specific content using GamePageContent
-    return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={true}/>;
+    return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={true} sessionId={gameId} fetchSessionAndQuestions={() => {}}/>;
   } else if (sessionData.type === 'player') {
      // Render player-specific content using GamePageContent
-     return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={false}/>;
+     return <GamePageContent gameId={gameId} gameSession={gameSession} questions={questions} setQuestion={setQuestion} handleNextAdminQuestion={handleNextAdminQuestion} sessionData={sessionData} handleStartGame={handleStartGame} isTimed={isTimed} time={time} question={question} handleAnswer={handleAnswer} selectedAnswer={selectedAnswer} timeExpired={timeExpired} handleSubmitAnswer={handleSubmitAnswer} results={results} overallRanking={overallRanking} questionRanking={questionRanking} isObserver={isObserver} isAdmin={false} sessionId={gameId} fetchSessionAndQuestions={() => {}}/>;
     }
 
   return (
@@ -451,8 +453,44 @@ export default function GamePage() {
 }
 
 
-const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, isObserver, isAdmin }) => {
+const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNextAdminQuestion, sessionData, handleStartGame, isTimed, time, question, handleAnswer, selectedAnswer, timeExpired, handleSubmitAnswer, results, overallRanking, questionRanking, isObserver, isAdmin, sessionId, fetchSessionAndQuestions }) => {
   const router = useRouter();
+  const {toast} = useToast();
+
+  const handleStartGameAction = async () => {
+    try {
+      const { error: updateError } = await supabase
+        .from('game_sessions')
+        .update({ status: 'active' })
+        .eq('id', gameId);
+
+      if (updateError) {
+        console.error("Error starting game session:", updateError);
+        toast({
+          title: "Error",
+          description: "Failed to start game session.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Game session started successfully.",
+      });
+
+      // Refresh the session data after starting the game
+      fetchSessionAndQuestions();
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      toast({
+        title: "Error",
+        description: "Unexpected error starting game session.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const title = isAdmin ? "Admin Game Page" : "Player Game Page";
     return (
         <div className="flex flex-col items-center min-h-screen py-2 bg-gray-900 text-white">
@@ -543,7 +581,7 @@ const GamePageContent = ({ gameId, gameSession, questions, setQuestion, handleNe
                           </Button>
                       )}
                       {gameSession?.status !== 'active' &&
-                          <Button onClick={handleStartGame}>
+                          <Button onClick={handleStartGameAction}>
                               Start Game
                           </Button>
                       }
