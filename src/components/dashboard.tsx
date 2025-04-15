@@ -61,23 +61,33 @@ export const Dashboard = () => {
       const {data, error} = await supabase
         .from('game_sessions')
         .select('*');
+
       if (error) {
         console.error('Error fetching game sessions:', JSON.stringify(error));
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Failed to fetch game sessions."
-          })
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: `Failed to fetch game sessions: ${error.message}`,
+        });
         return;
       }
+
       setActiveSessions(data || []);
-    } catch (error) {
-      console.error('Unexpected error fetching game sessions:', JSON.stringify(error));
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Unexpected error fetching game sessions."
-        })
+    } catch (error: any) {
+      console.error('Unexpected error fetching game sessions:', error);
+      let errorMessage = "Unexpected error fetching game sessions.";
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.error?.message) {
+        errorMessage = error.error.message;
+      } else if (error.data?.message) {
+        errorMessage = error.data.message;
+      }
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
     }
   };
 
@@ -249,3 +259,4 @@ export const Dashboard = () => {
     </div>
   );
 };
+
