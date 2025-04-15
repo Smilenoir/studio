@@ -28,6 +28,14 @@ import {useToast} from "@/hooks/use-toast";
 import {format} from 'date-fns';
 import {useRouter} from "next/navigation";
 import {Edit, Trash, RefreshCcw, Eye} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface GameSession {
   id: string;
@@ -53,6 +61,10 @@ export const Dashboard = () => {
     const router = useRouter();
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [restartingSessionId, setRestartingSessionId] = useState<string | null>(null);
+
+  const [editSessionId, setEditSessionId] = useState<string | null>(null);
+  const [editSessionOpen, setEditSessionOpen] = useState(false);
+  const [editedSession, setEditedSession] = useState<Partial<GameSession>>({});
 
   useEffect(() => {
     fetchSessions();
@@ -289,6 +301,77 @@ export const Dashboard = () => {
     }
   };
 
+    const handleEditSession = (session: GameSession) => {
+        setEditSessionId(session.id);
+        setEditedSession({
+            sessionName: session.sessionName,
+            maxPlayers: session.maxPlayers,
+            questionGroupId: session.questionGroupId,
+            timePerQuestionInSec: session.timePerQuestionInSec
+        });
+        setEditSessionOpen(true);
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const {name, value} = e.target;
+        setEditedSession(prev => ({...prev, [name]: value }));
+    };
+
+    const handleSelectChange = (value: string, name: string) => {
+        setEditedSession(prev => ({ ...prev, [name]: value }));
+    };
+
+    const updateSession = async () => {
+        if (!editSessionId || !editedSession) return;
+
+        try {
+            const {error} = await supabase
+                .from('game_sessions')
+                .update({
+                    sessionName: editedSession.sessionName,
+                    maxPlayers: editedSession.maxPlayers,
+                    questionGroupId: editedSession.questionGroupId,
+                    timePerQuestionInSec: editedSession.timePerQuestionInSec
+                })
+                .eq('id', editSessionId);
+
+            if (error) {
+                console.error('Error updating session:', error);
+                toast({
+                    title: "Error",
+                    description: "Failed to update session.",
+                    variant: "destructive",
+                });
+                return;
+            }
+
+            setActiveSessions(prevSessions => {
+                return prevSessions.map(session => {
+                    if (session.id === editSessionId) {
+                        return { ...session, ...editedSession } as GameSession;
+                    }
+                    return session;
+                });
+            });
+            toast({
+                title: "Success",
+                description: "Session updated successfully."
+            });
+
+            setEditSessionOpen(false);
+            setEditSessionId(null);
+            setEditedSession({});
+
+        } catch (error) {
+            console.error("Unexpected error updating session:", error);
+            toast({
+                title: "Error",
+                description: "Unexpected error updating session.",
+                variant: "destructive",
+            });
+        }
+    };
+
   return (
     <div className="container mx-auto max-w-4xl">
       <h2 className="text-2xl font-semibold mb-4">Active Sessions</h2>
@@ -340,7 +423,7 @@ export const Dashboard = () => {
                       <Button size="icon" onClick={() => router.push(`/game/${session.id}`)} disabled={session.status === 'active'}>
                           <Eye className="h-4 w-4"/>
                       </Button>
-                      <Button size="icon" onClick={() => router.push(`/game/${session.id}`)}>
+                      <Button size="icon" onClick={() => handleEditSession(session)}>
                           <Edit className="h-4 w-4"/>
                       </Button>
                       <AlertDialog>
@@ -388,7 +471,77 @@ export const Dashboard = () => {
           </TableBody>
         </Table>
       </div>
+
+        <Dialog open={editSessionOpen} onOpenChange={setEditSessionOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Edit Session</DialogTitle>
+                    <DialogDescription>
+                        Make changes to the session details.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="sessionName" className="text-right">Session Name</Label>
+                        <Input
+                            type="text"
+                            id="sessionName"
+                            name="sessionName"
+                            value={editedSession.sessionName || ''}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="maxPlayers" className="text-right">Max Players</Label>
+                        <Input
+                            type="number"
+                            id="maxPlayers"
+                            name="maxPlayers"
+                            value={editedSession.maxPlayers || ''}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                        />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="questionGroupId" className="text-right">Question Group</Label>
+                        <select
+                            id="questionGroupId"
+                            name="questionGroupId"
+                            value={editedSession.questionGroupId || ''}
+                            onChange={(e) => handleSelectChange(e.target.value, 'questionGroupId')}
+                            className="col-span-3 bg-gray-700 text-white rounded p-2"
+                        >
+                            <option value="">Select a group</option>
+                            {availableGroups.map(group => (
+                                <option key={group.id} value={group.id}>{group.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="timePerQuestionInSec" className="text-right">Time per Question (seconds)</Label>
+                        <Input
+                            type="number"
+                            id="timePerQuestionInSec"
+                            name="timePerQuestionInSec"
+                            value={editedSession.timePerQuestionInSec || ''}
+                            onChange={handleInputChange}
+                            className="col-span-3"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button type="button" onClick={() => {
+                        updateSession()
+                        setEditSessionOpen(false)
+                    }}>
+                        Update Session
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 };
+
 
