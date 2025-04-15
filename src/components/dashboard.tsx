@@ -1,5 +1,3 @@
-'use client';
-
 import {useState, useEffect} from 'react';
 import {
   Table,
@@ -401,40 +399,8 @@ export const Dashboard = () => {
     return sessionPlayers.length;
   };
 
-    const handleTakeControl = async (session: GameSession) => {
-      try {
-        const { data: redisData, error: redisError } = await supabase
-          .from('redis')
-          .select('value')
-          .eq('key', session.id)
-          .maybeSingle();
-    
-        let players = {};
-    
-        if (redisData && redisData.value) {
-          try {
-            players = JSON.parse(redisData.value);
-          } catch (parseError) {
-            console.error('Error parsing Redis data:', parseError);
-            toast({
-              title: "Error",
-              description: "Failed to parse lobby players data.",
-              variant: "destructive"
-            });
-            return;
-          }
-        }
-    
-        setOpen(true);
-
-      } catch (error) {
-        console.error("Unexpected error:", error);
-        toast({
-          title: "Error",
-          description: "Unexpected error taking control of game session.",
-          variant: "destructive",
-        });
-      }
+    const handleTakeControl = (session: GameSession) => {
+      setOpen(true);
     };
 
   return (
@@ -485,7 +451,7 @@ export const Dashboard = () => {
                   <TableCell>{session.status}</TableCell>
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="icon" onClick={() => handleTakeControl(session)} disabled={session.status === 'active'}>
+                      <Button size="icon" onClick={() => handleTakeControl(session)}>
                           <Eye className="h-4 w-4"/>
                       </Button>
                       <Button size="icon" onClick={() => handleEditSession(session)}>
@@ -537,75 +503,6 @@ export const Dashboard = () => {
         </Table>
       </div>
 
-        <Dialog open={editSessionOpen} onOpenChange={setEditSessionOpen}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Edit Session</DialogTitle>
-                    <DialogDescription>
-                        Make changes to the session details.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="sessionName" className="text-right">Session Name</Label>
-                        <Input
-                            type="text"
-                            id="sessionName"
-                            name="sessionName"
-                            value={editedSession.sessionName || ''}
-                            onChange={handleInputChange}
-                            className="col-span-3"
-                        />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="maxPlayers" className="text-right">Max Players</Label>
-                        <Input
-                            type="number"
-                            id="maxPlayers"
-                            name="maxPlayers"
-                            value={editedSession.maxPlayers || ''}
-                            onChange={handleInputChange}
-                            className="col-span-3"
-                        />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="questionGroupId" className="text-right">Question Group</Label>
-                        <select
-                            id="questionGroupId"
-                            name="questionGroupId"
-                            value={editedSession.questionGroupId || ''}
-                            onChange={(e) => handleSelectChange(e.target.value, 'questionGroupId')}
-                            className="col-span-3 bg-gray-700 text-white rounded p-2"
-                        >
-                            <option value="">Select a group</option>
-                            {availableGroups.map(group => (
-                                <option key={group.id} value={group.id}>{group.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="timePerQuestionInSec" className="text-right">Time per Question (seconds)</Label>
-                        <Input
-                            type="number"
-                            id="timePerQuestionInSec"
-                            name="timePerQuestionInSec"
-                            value={editedSession.timePerQuestionInSec || ''}
-                            onChange={handleInputChange}
-                            className="col-span-3"
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button type="button" onClick={() => {
-                        updateSession()
-                        setEditSessionOpen(false)
-                    }}>
-                        Update Session
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
             <DialogHeader>
@@ -640,3 +537,4 @@ export const Dashboard = () => {
     </div>
   );
 };
+
