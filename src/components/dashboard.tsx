@@ -1,10 +1,11 @@
+'use client';
+
 import {useState, useEffect} from 'react';
 import {
   Table,
   TableBody,
   TableCaption,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
@@ -68,6 +69,7 @@ export const Dashboard = () => {
   const [editSessionId, setEditSessionId] = useState<string | null>(null);
   const [editSessionOpen, setEditSessionOpen] = useState(false);
   const [editedSession, setEditedSession] = useState<Partial<GameSession>>({});
+    const [playersInSession, setPlayersInSession] = useState<{ [key: string]: number }>({});
 
   useEffect(() => {
     fetchSessions();
@@ -332,6 +334,80 @@ export const Dashboard = () => {
         }
     };
 
+    const getConnectedPlayersCount = (sessionId: string): number => {
+        if (!sessionId || !playersInSession[sessionId]) {
+            return 0;
+        }
+        return Object.keys(playersInSession[sessionId]).length;
+    };
+
+    useEffect(() => {
+        const fetchPlayers = async () => {
+            const initialPlayers = {};
+
+            for (const session of activeSessions) {
+                try {
+                    const { data: redisData, error: redisError } = await supabase
+                        .from('redis')
+                        .select('value')
+                        .eq('key', session.id)
+                        .maybeSingle();
+
+                    if (redisError) {
+                        console.error('Error fetching Redis data:', redisError);
+                        toast({
+                            variant: "destructive",
+                            title: "Error",
+                            description: "Failed to fetch players."
+                        });
+                        continue;
+                    }
+
+                    if (redisData && redisData.value) {
+                        try {
+                            initialPlayers[session.id] = JSON.parse(redisData.value);
+                        } catch (parseError) {
+                            console.error('Error parsing Redis data:', parseError);
+                            toast({
+                                variant: "destructive",
+                                title: "Error",
+                                description: "Failed to parse lobby players data."
+                            });
+                            continue;
+                        }
+                    } else {
+                        initialPlayers[session.id] = {};
+                    }
+                } catch (error) {
+                    console.error('Unexpected error fetching Redis data:', error);
+                    toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: "Unexpected error fetching players."
+                    });
+                }
+            }
+
+            setPlayersInSession(initialPlayers);
+        };
+
+        fetchPlayers();
+    }, [activeSessions]);
+
+    useEffect(() => {
+        supabase
+            .channel('redis-changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'redis' },
+                payload => {
+                    console.log('Change received!', payload);
+                    fetchSessions();
+                }
+            )
+            .subscribe()
+    }, []);
+
 
   return (
     <div className="container mx-auto max-w-4xl">
@@ -377,7 +453,7 @@ export const Dashboard = () => {
               activeSessions.map(session => (
                 <TableRow key={session.id}>
                   <TableCell>{session.sessionName}</TableCell>
-                  <TableCell>{session.maxPlayers}</TableCell>
+                  <TableCell>{getConnectedPlayersCount(session.id)}/{session.maxPlayers}</TableCell>
                   <TableCell>{session.status}</TableCell>
                   <TableCell>{getGroupName(session.questionGroupId)}</TableCell>
                     <TableCell className="text-right">
@@ -389,7 +465,7 @@ export const Dashboard = () => {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" onClick={() => confirmRestartSession(session.id)} disabled={session.status === 'waiting'}>
+                          <Button size="icon" onClick={() => confirmRestartSession(session.id)} variant="outline" disabled={session.status === 'waiting'}>
                             <RefreshCcw className="h-4 w-4"/>
                           </Button>
                         </AlertDialogTrigger>
