@@ -19,7 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-
+import { ArrowLeft } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { generateId } from "@/lib/utils";
@@ -67,7 +67,7 @@ const GamePage = () => {
     const [sessionData, setSessionData] = useState<UserSession | null>(null);
     const [gameSession, setGameSession] = useState<GameSessionData | null>(null);
     const { toast } = useToast();
-    const [playersInSession, setPlayersInSession] = useState<{ nickname: string; id: string }[]>([]);
+    const [playersInSession, setPlayersInSession = useState<{ nickname: string; id: string }[]>([]);
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [question, setQuestion] = useState<Question | null>(null);
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
