@@ -714,7 +714,7 @@ const GamePage = () => {
                           </p>
                           <p><Clock className="mr-2 h-4 w-4" /> {gameSession.timePerQuestionInSec} s</p>
                           <p><strong>Group:</strong> {groupName}</p>
-                          <p><strong>Status:</strong> {gameSession.status}</p>
+                          
                         </>
                       )}
                     </CardContent>
@@ -752,7 +752,7 @@ const GamePage = () => {
                     <h2 className="text-2xl font-bold">Admin View</h2>
                     {gameSession && (
                         <div className="mb-4">
-                            <strong>Session Status:</strong> {gameSession.status}
+                            
                         </div>
                     )}
                 </div>
