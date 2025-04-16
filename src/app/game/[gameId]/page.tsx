@@ -67,7 +67,7 @@ const GamePage = () => {
     const [sessionData, setSessionData] = useState<UserSession | null>(null);
     const [gameSession, setGameSession] = useState<GameSessionData | null>(null);
     const { toast } = useToast();
-    const [playersInSession, setPlayersInSession = useState<{ nickname: string; id: string }[]>([]);
+    const [playersInSession, setPlayersInSession] = useState<{ nickname: string; id: string }[]>([]);
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [question, setQuestion] = useState<Question | null>(null);
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
