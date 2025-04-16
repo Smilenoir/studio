@@ -26,7 +26,7 @@ import { ArrowLeft } from "lucide-react";
 import { generateId } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users } from "@/components/users";
-import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play, Info } from "lucide-react";
+import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play, Info, Stop, Pause } from "lucide-react";
 
 interface UserSession {
     nickname: string | null;
@@ -65,7 +65,6 @@ const GamePage = () => {
     const router = useRouter();
     const { gameId } = useParams();
     const [sessionData, setSessionData] = useState<UserSession | null>(null);
-    const [isAdmin, setIsAdmin] = useState(false);
     const [gameSession, setGameSession] = useState<GameSessionData | null>(null);
     const { toast } = useToast();
     const [playersInSession, setPlayersInSession] = useState<{ nickname: string; id: string }[]>([]);
@@ -98,11 +97,11 @@ const GamePage = () => {
                     // Handle error appropriately, e.g., redirect or show an error message
                 }
 
-                if (data && data.type === 'admin') {
-                    setIsAdmin(true);
-                } else {
-                    setIsAdmin(false);
-                }
+                //if (data && data.type === 'admin') {
+                //    setIsAdmin(true);
+                //} else {
+                //    setIsAdmin(false);
+                //}
             }
         };
 
@@ -512,7 +511,7 @@ const GamePage = () => {
     useEffect(() => {
         const checkIfAdminObserver = async () => {
             const isAdminValue = await isAdminObserver();
-            setIsAdmin(isAdminValue);
+            //setIsAdmin(isAdminValue);
         };
         checkIfAdminObserver();
     }, [sessionData, sessionId]);
@@ -579,7 +578,7 @@ const GamePage = () => {
 
     
 
-    const title = isAdmin ? 'Admin Game Page' : 'Player Game Page';
+    const title = 'Admin Game Page';
 
     const fetchPlayersInSession = async (): Promise<{ nickname: string; id: string }[]> => {
         try {
@@ -641,58 +640,78 @@ const GamePage = () => {
     return (
         <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
             {/* Left Menu */}
-            {isAdmin && (
-                <div className="w-64 p-4 flex flex-col">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="ghost" className="justify-start mb-2">
-                            <User className="mr-2 h-4 w-4" /> List Players
-                        </Button>
-                    </PopoverTrigger>
-                      <PopoverContent className="w-80">
-                          <Card>
-                              <CardHeader>
-                                  <CardTitle>Players in Session</CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                  {playersInSession.map((player) => (
-                                      <div key={player.id} className="flex items-center space-x-4 py-2">
-                                          <Avatar>
-                                              <AvatarImage src="https://github.com/shadcn.png" />
-                                              <AvatarFallback>{player.nickname?.substring(0, 2)}</AvatarFallback>
-                                          </Avatar>
-                                          <div>
-                                              <p className="text-sm font-medium leading-none">{player.nickname}</p>
-                                          </div>
-                                      </div>
-                                  ))}
-                              </CardContent>
-                          </Card>
-                      </PopoverContent>
-                  </Popover>
+            
+            <div className="w-64 p-4 flex flex-col">
+              <Popover>
+                <PopoverTrigger asChild>
                     <Button variant="ghost" className="justify-start mb-2">
-                        {gameSession?.status === 'waiting' ? (
-                            <Info className="mr-2 h-4 w-4 text-blue-500" />
-                        ) : gameSession?.status === 'active' ? (
-                            <Info className="mr-2 h-4 w-4 text-green-500" />
-                        ) : (
-                            <Info className="mr-2 h-4 w-4 text-orange-500" />
-                        )}
+                        <User className="mr-2 h-4 w-4" /> List Players
+                    </Button>
+                </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                      <Card>
+                          <CardHeader>
+                              <CardTitle>Players in Session</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                              {playersInSession.map((player) => (
+                                  <div key={player.id} className="flex items-center space-x-4 py-2">
+                                      <Avatar>
+                                          <AvatarImage src="https://github.com/shadcn.png" />
+                                          <AvatarFallback>{player.nickname?.substring(0, 2)}</AvatarFallback>
+                                      </Avatar>
+                                      <div>
+                                          <p className="text-sm font-medium leading-none">{player.nickname}</p>
+                                      </div>
+                                  </div>
+                              ))}
+                          </CardContent>
+                      </Card>
+                  </PopoverContent>
+              </Popover>
+              <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" className="justify-start mb-2">
+                      {gameSession?.status === 'waiting' ? (
+                        <Info className="mr-2 h-4 w-4 text-blue-500" />
+                      ) : gameSession?.status === 'active' ? (
+                        <Info className="mr-2 h-4 w-4 text-green-500" />
+                      ) : (
+                        <Info className="mr-2 h-4 w-4 text-orange-500" />
+                      )}
                         Game Info
                     </Button>
-                    <Button variant="ghost" className="justify-start mb-2">
-                        <BarChart className="mr-2 h-4 w-4" /> Game Results
-                    </Button>
-                    <Button variant="ghost" className="justify-start mb-2">
-                        <ListOrdered className="mr-2 h-4 w-4" /> Round Results
-                    </Button>
-                    {gameSession?.status === 'waiting' && (
-                      <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
-                          <Play className="mr-2 h-4 w-4" /> Start Game
-                      </Button>
-                    )}
-                </div>
-            )}
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Game Session Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {gameSession && (
+                        <>
+                          <p><strong>Session Name:</strong> {gameSession.sessionName}</p>
+                          <p><strong>Max Players:</strong> {gameSession.maxPlayers}</p>
+                          <p><strong>Time per Question:</strong> {gameSession.timePerQuestionInSec}</p>
+                          <p><strong>Question Group ID:</strong> {gameSession.questionGroupId}</p>
+                          <p><strong>Created At:</strong> {gameSession.createdAt}</p>
+                          <p><strong>Status:</strong> {gameSession.status}</p>
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                </PopoverContent>
+              </Popover>
+                <Button variant="ghost" className="justify-start mb-2">
+                    <BarChart className="mr-2 h-4 w-4" /> Game Results
+                </Button>
+                <Button variant="ghost" className="justify-start mb-2">
+                    <ListOrdered className="mr-2 h-4 w-4" /> Round Results
+                </Button>
+                <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
+                    <Play className="mr-2 h-4 w-4" /> Start Game
+                </Button>
+            </div>
             {/* Main Content */}
             <div className="flex-1 p-4">
                 <div className="absolute bottom-4 left-4">
@@ -709,21 +728,16 @@ const GamePage = () => {
                 </div>
                 <h1 className="text-3xl font-bold mb-4 mt-4">{title}</h1>
 
-                {isAdmin ? (
-                    <div className="mt-8 text-center">
-                        <h2 className="text-2xl font-bold">Admin View</h2>
-                        {gameSession && (
-                            <div className="mb-4">
-                                <strong>Session Status:</strong> {gameSession.status}
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="mt-8 text-center">
-                        <h2 className="text-2xl font-bold">Player View</h2>
-                        {/* Add player information and participation details here */}
-                    </div>
-                )}
+                
+                <div className="mt-8 text-center">
+                    <h2 className="text-2xl font-bold">Admin View</h2>
+                    {gameSession && (
+                        <div className="mb-4">
+                            <strong>Session Status:</strong> {gameSession.status}
+                        </div>
+                    )}
+                </div>
+                
             </div>
         </div>
     );
