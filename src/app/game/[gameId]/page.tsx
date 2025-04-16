@@ -655,6 +655,7 @@ const GamePage = () => {
 
                         // Fetch usernames for the lobby
                         fetchPlayers(sessionId);
+                        setPlayersInSession(prevPlayers => prevPlayers.filter(player => player.id !== userToKick));
 
                     }
                 } catch (parseError) {
