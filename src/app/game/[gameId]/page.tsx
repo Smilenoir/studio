@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
@@ -674,6 +674,11 @@ const GamePage = () => {
           setUserToKick(null);
         }
   };
+
+  const handleKickPlayer = useCallback(async (userId: string) => {
+    setOpenAlertDialog(true);
+    setUserToKick(userId);
+  }, [setOpenAlertDialog, setUserToKick]);
 
 
     return (
