@@ -78,6 +78,7 @@ const GamePage = () => {
     const [questionRanking, setQuestionRanking] = useState<{ userId: string; score: number }[]>([]);
     const [overallRanking, setOverallRanking] = useState<{ userId: string; score: number }[]>([]);
     const [groupName, setGroupName] = useState<string | null>(null);
+    const [playersCount, setPlayersCount] = useState(0);
 
     const sessionId = gameId as string;
 
@@ -86,25 +87,6 @@ const GamePage = () => {
         const loadSession = async () => {
             const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
             setSessionData(userSession);
-
-            if (userSession && userSession.id) {
-                const { data, error } = await supabase
-                    .from('users')
-                    .select('type')
-                    .eq('id', userSession.id)
-                    .single();
-
-                if (error) {
-                    console.error('Error fetching user data:', error);
-                    // Handle error appropriately, e.g., redirect or show an error message
-                }
-
-                //if (data && data.type === 'admin') {
-                //    setIsAdmin(true);
-                //} else {
-                //    setIsAdmin(false);
-                //}
-            }
         };
 
         loadSession();
@@ -182,10 +164,12 @@ const GamePage = () => {
                     setIsTimed(false);
                     setTime(null);
                 }
-                await fetchPlayers(sessionId);
 
+                // Fetch usernames for the lobby
+                fetchPlayers(sessionId);
                 await fetchLeaderboard(sessionId);
                 await fetchRanking(sessionId);
+
 
             } catch (error) {
                 console.error("Unexpected error:", error);
@@ -217,50 +201,7 @@ const GamePage = () => {
         checkSessionStatus();
     }, [router, sessionId]);
 
-    
-
     const fetchLeaderboard = async (sessionId: string) => {
-        const redisKey = sessionId;
-        const { data: redisData, error: redisError } = await supabase
-            .from('redis')
-            .select('value')
-            .eq('key', redisKey)
-            .maybeSingle();
-
-        if (redisError) {
-            console.error('Error fetching Redis data:', redisError);
-            toast({
-                title: "Error",
-                description: "Failed to fetch leaderboard.",
-                variant: "destructive"
-            });
-            return;
-        }
-
-        if (redisData && redisData.value) {
-            try {
-                const parsedData = JSON.parse(redisData.value);
-                // Convert the object into an array of { userId, score }
-                const leaderboardArray = Object.entries(parsedData).map(([userId, score]) => ({
-                    userId,
-                    score: Number(score) // Ensure score is a number
-                }));
-                // Sort the leaderboard array by score in descending order
-                leaderboardArray.sort((a, b) => b.score - a.score);
-                setOverallRanking(leaderboardArray);
-            } catch (parseError) {
-                console.error('Error parsing Redis data:', parseError);
-                toast({
-                    title: "Error",
-                    description: "Failed to parse leaderboard data.",
-                    variant: "destructive"
-                });
-                return;
-            }
-        }
-    };
-
-    const fetchRanking = async (sessionId: string) => {
       const redisKey = sessionId;
         const { data: redisData, error: redisError } = await supabase
           .from('redis')
@@ -288,7 +229,7 @@ const GamePage = () => {
             }));
             // Sort the leaderboard array by score in descending order
             leaderboardArray.sort((a, b) => b.score - a.score);
-            setQuestionRanking(leaderboardArray);
+            setOverallRanking(leaderboardArray);
           } catch (parseError) {
             console.error('Error parsing Redis data:', parseError);
             toast({
@@ -301,268 +242,242 @@ const GamePage = () => {
         }
     };
 
-    useEffect(() => {
-      const intervalId = setInterval(() => {
-        if (time !== null) {
-          if (time > 0) {
-            setTime(time - 1);
-          } else {
-            setTimeExpired(true);
+    const fetchRanking = async (sessionId: string) => {
+        const redisKey = sessionId;
+        const { data: redisData, error: redisError } = await supabase
+            .from('redis')
+            .select('value')
+            .eq('key', redisKey)
+            .maybeSingle();
+
+        if (redisError) {
+            console.error('Error fetching Redis data:', redisError);
             toast({
-              title: "Time's up!",
-              description: "Time has expired for this question.",
+                title: "Error",
+                description: "Failed to fetch leaderboard.",
+                variant: "destructive"
             });
-            clearInterval(intervalId); // Clear interval when time expires
-          }
-        }
-      }, 1000);
-      // Clean up the interval when the component unmounts
-      return () => clearInterval(intervalId);
-    }, [time, toast]);
-
-    
-
-    const handleSubmitAnswer = async () => {
-      if (!sessionData || !question || !sessionId || !gameSession) {
-        toast({
-          title: "Error",
-          description: "Missing data. Cannot submit answer.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const isCorrect = question.answers.includes(selectedAnswer as string);
-      let points = 0;
-
-      if (isTimed && time !== null && time > 0) {
-        if (isCorrect) {
-          points = time; // Award points based on remaining time
-        }
-      }
-
-      if (!isCorrect) {
-          toast({
-              title: "Incorrect Answer",
-              description: "You did not answer correctly.",
-              variant: "destructive"
-          });
-          return;
-      }
-
-      const redisKey = sessionId;
-      try {
-        // Fetch current data from Redis
-        const { data: redisData, error: redisError } = await supabase
-          .from('redis')
-          .select('value')
-          .eq('key', redisKey)
-          .maybeSingle();
-
-        if (redisError) {
-          console.error('Error fetching Redis data:', redisError);
-          toast({
-            title: "Error",
-            description: "Failed to submit answer (fetch Redis data).",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        if (!redisData || !redisData.value) {
-          toast({
-            title: "Error",
-            description: "No data found in Redis.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Parse JSON data
-        let playerData;
-        try {
-          playerData = JSON.parse(redisData.value);
-        } catch (parseError) {
-          console.error('Error parsing Redis data:', parseError);
-          toast({
-            title: "Error",
-            description: "Failed to parse Redis data.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Update player's score
-        playerData[sessionData.id] = (playerData[sessionData.id] || 0) + points;
-
-        // Stringify updated game data
-        const updatedGameData = JSON.stringify(playerData);
-
-        // Update Redis with new data
-        const { error: updateError } = await supabase
-          .from('redis')
-          .update({ value: updatedGameData })
-          .eq('key', redisKey);
-
-        if (updateError) {
-          console.error('Error updating game data in Redis:', updateError);
-          toast({
-            title: "Error",
-            description: "Failed to submit answer (update Redis data).",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        toast({
-          title: "Correct Answer!",
-          description: `You earned ${points} points!`,
-        });
-        fetchLeaderboard(sessionId);
-        fetchRanking(sessionId);
-
-      } catch (error: any) {
-        console.error('Unexpected error submitting answer:', error);
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive"
-        });
-      } finally {
-        setTimeExpired(true);
-      }
-    };
-
-    const fetchUserNicknames = async (userIds: string[]) => {
-      if (!userIds || userIds.length === 0) {
-        setPlayersInSession([]);
-        return;
-      }
-      try {
-        // Fetch user data from Supabase to get the 'type'
-        const { data, error } = await supabase
-          .from('users')
-          .select('nickname, id')
-          .in('id', userIds);
-
-        if (error) {
-          console.error('Error fetching user data:', error);
-          return;
-        }
-        setPlayersInSession(data || []);
-
-      } catch (error) {
-        console.error("Unexpected error:", error);
-        return;
-      }
-    }
-
-    const fetchPlayers = async (gameId: string) => {
-      try {
-        const { data: redisData, error: redisError } = await supabase
-          .from('redis')
-          .select('value')
-          .eq('key', gameId)
-          .maybeSingle();
-
-        if (redisError) {
-          console.error('Error fetching Redis data:', redisError);
-          toast({
-            title: "Error",
-            description: "Failed to fetch session players."
-          });
-          return;
+            return;
         }
 
         if (redisData && redisData.value) {
-          try {
-            const players = JSON.parse(redisData.value);
-            const userIds = Object.keys(players);
-            fetchUserNicknames(userIds);
-
-          } catch (parseError) {
-            console.error('Error parsing Redis data:', parseError);
-            toast({
-              title: "Error",
-              description: "Failed to parse session players data."
-            });
-            return;
-          }
-        } else {
-          setPlayersInSession([]);
-        }
-      } catch (error) {
-        console.error('Unexpected error fetching Redis data:', error);
-      }
-    };
-
-    const isAdminObserver = async (): Promise<boolean> => {
-        if (!sessionId) {
-            console.error('Session ID is missing.');
-            return false;
-        }
-
-        if (!sessionData || !sessionData.id) {
-            console.warn('Session data or user ID is missing.  This is unexpected on Admin View.');
-            return false;
-        }
-
-        try {
-            const { data: userData, error: userError } = await supabase
-                .from('users')
-                .select('type')
-                .eq('id', sessionData.id)
-                .single();
-
-            if (userError) {
-                console.error('Error fetching game session:', userError);
-                return false;
+            try {
+                const parsedData = JSON.parse(redisData.value);
+                const leaderboardArray = Object.entries(parsedData).map(([userId, score]) => ({
+                    userId,
+                    score: Number(score)
+                }));
+                leaderboardArray.sort((a, b) => b.score - a.score);
+                setQuestionRanking(leaderboardArray);
+            } catch (parseError) {
+                console.error('Error parsing Redis data:', parseError);
+                toast({
+                    title: "Error",
+                    description: "Failed to parse leaderboard data.",
+                    variant: "destructive"
+                });
+                return;
             }
-            return userData?.type === 'admin';
-        } catch (error) {
-            console.error('Unexpected error:', error);
-            return false;
         }
     };
 
     useEffect(() => {
-        const checkIfAdminObserver = async () => {
-            const isAdminValue = await isAdminObserver();
-            //setIsAdmin(isAdminValue);
-        };
-        checkIfAdminObserver();
-    }, [sessionData, sessionId]);
+        const intervalId = setInterval(() => {
+            if (time !== null) {
+                if (time > 0) {
+                    setTime(time - 1);
+                } else {
+                    setTimeExpired(true);
+                    toast({
+                        title: "Time's up!",
+                        description: "Time has expired for this question.",
+                    });
+                    clearInterval(intervalId); // Clear interval when time expires
+                }
+            }
+        }, 1000);
+        // Clean up the interval when the component unmounts
+        return () => clearInterval(intervalId);
+    }, [time, toast]);
 
-    const handleStartGame = async () => {
-      try {
-          const { error } = await supabase
-              .from('game_sessions')
-              .update({ status: 'active' })
-              .eq('id', sessionId);
+    const handleSubmitAnswer = async () => {
+        if (!sessionData || !question || !sessionId || !gameSession) {
+            toast({
+                title: "Error",
+                description: "Missing data. Cannot submit answer.",
+                variant: "destructive"
+            });
+            return;
+        }
 
-          if (error) {
-              console.error('Error starting game session:', error);
-              toast({
-                  variant: "destructive",
-                  title: "Error",
-                  description: "Failed to start game session."
-              });
-              return;
-          }
+        const isCorrect = question.answers.includes(selectedAnswer as string);
+        let points = 0;
 
-          toast({
-              title: "Success",
-              description: "Game session started successfully."
-          });
-      } catch (error) {
-          console.error('Unexpected error starting game session:', JSON.stringify(error));
-          toast({
-              variant: "destructive",
-              title: "Error",
-              description: "Unexpected error starting game session."
-          });
-      }
+        if (isTimed && time !== null && time > 0) {
+            if (isCorrect) {
+                points = time; // Award points based on remaining time
+            }
+        }
+
+        if (!isCorrect) {
+            toast({
+                title: "Incorrect Answer",
+                description: "You did not answer correctly.",
+                variant: "destructive"
+            });
+            return;
+        }
+
+        const redisKey = sessionId;
+        try {
+            // Fetch current data from Redis
+            const { data: redisData, error: redisError } = await supabase
+                .from('redis')
+                .select('value')
+                .eq('key', redisKey)
+                .maybeSingle();
+
+            if (redisError) {
+                console.error('Error fetching Redis data:', redisError);
+                toast({
+                    title: "Error",
+                    description: "Failed to submit answer (fetch Redis data).",
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            if (!redisData || !redisData.value) {
+                toast({
+                    title: "Error",
+                    description: "No data found in Redis.",
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            // Parse JSON data
+            let playerData;
+            try {
+                playerData = JSON.parse(redisData.value);
+            } catch (parseError) {
+                console.error('Error parsing Redis data:', parseError);
+                toast({
+                    title: "Error",
+                    description: "Failed to parse Redis data.",
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            // Update player's score
+            playerData[sessionData.id] = (playerData[sessionData.id] || 0) + points;
+
+            // Stringify updated game data
+            const updatedGameData = JSON.stringify(playerData);
+
+            // Update Redis with new data
+            const { error: updateError } = await supabase
+                .from('redis')
+                .update({ value: updatedGameData })
+                .eq('key', redisKey);
+
+            if (updateError) {
+                console.error('Error updating game data in Redis:', updateError);
+                toast({
+                    title: "Error",
+                    description: "Failed to submit answer (update Redis data).",
+                    variant: "destructive"
+                });
+                return;
+            }
+
+            toast({
+                title: "Correct Answer!",
+                description: `You earned ${points} points!`,
+            });
+            fetchLeaderboard(sessionId);
+            fetchRanking(sessionId);
+
+        } catch (error: any) {
+            console.error('Unexpected error submitting answer:', error);
+            toast({
+                title: "Error",
+                description: error.message,
+                variant: "destructive"
+            });
+        } finally {
+            setTimeExpired(true);
+        }
     };
+
+    const fetchUserNicknames = async (userIds: string[]) => {
+        if (!userIds || userIds.length === 0) {
+            setPlayersInSession([]);
+            return;
+        }
+        try {
+            // Fetch user data from Supabase to get the 'type'
+            const { data, error } = await supabase
+                .from('users')
+                .select('nickname, id')
+                .in('id', userIds);
+
+            if (error) {
+                console.error('Error fetching user data:', error);
+                return;
+            }
+            setPlayersInSession(data || []);
+
+        } catch (error) {
+            console.error("Unexpected error:", error);
+            return;
+        }
+    }
+
+    const fetchPlayers = async (gameId: string) => {
+        try {
+            const { data: redisData, error: redisError } = await supabase
+                .from('redis')
+                .select('value')
+                .eq('key', gameId)
+                .maybeSingle();
+
+            if (redisError) {
+                console.error('Error fetching Redis data:', redisError);
+                toast({
+                    title: "Error",
+                    description: "Failed to fetch session players."
+                });
+                return;
+            }
+
+            if (redisData && redisData.value) {
+                try {
+                    const players = JSON.parse(redisData.value);
+                    const userIds = Object.keys(players);
+                    fetchUserNicknames(userIds);
+                    setPlayersCount(userIds.length);
+
+                } catch (parseError) {
+                    console.error('Error parsing Redis data:', parseError);
+                    toast({
+                        title: "Error",
+                        description: "Failed to parse session players data."
+                    });
+                    return;
+                }
+            } else {
+                setPlayersInSession([]);
+            }
+        } catch (error) {
+            console.error('Unexpected error fetching Redis data:', error);
+        }
+    };
+
+    useEffect(() => {
+      fetchPlayers(sessionId);
+    }, [sessionId]);
 
     useEffect(() => {
         if (questions && questions.length > 0) {
@@ -592,8 +507,6 @@ const GamePage = () => {
             fetchUserNicknames(Array.from(userIds));
         }
     }, [overallRanking, questionRanking]);
-
-    
 
     const title = 'Admin Game Page';
 
@@ -652,75 +565,114 @@ const GamePage = () => {
             return [];
         }
     };
-    
-    
+
+    const handleStartGame = async () => {
+        try {
+            const { error } = await supabase
+                .from('game_sessions')
+                .update({ status: 'active' })
+                .eq('id', sessionId);
+
+            if (error) {
+                console.error('Error starting game session:', error);
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to start game session."
+                });
+                return;
+            }
+
+            toast({
+                title: "Success",
+                description: "Game session started successfully."
+            });
+        } catch (error) {
+            console.error('Unexpected error starting game session:', JSON.stringify(error));
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Unexpected error starting game session."
+            });
+        }
+    };
+
+    const getGroupName = (groupId: string) => {
+      // Ensure gameSession and groupData are not null before accessing their properties
+      if (!gameSession || !questions) {
+        return 'Loading...'; // Or any other placeholder text
+      }
+      return groupName || 'Unknown Group';
+    };
+
+
     return (
         <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
             {/* Left Menu */}
-            
+
             <div className="w-64 p-4 flex flex-col">
-              <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="ghost" className="justify-start mb-2">
-                        <User className="mr-2 h-4 w-4" /> List Players
-                    </Button>
-                </PopoverTrigger>
-                  <PopoverContent className="w-80">
-                      <Card>
-                          <CardHeader>
-                              <CardTitle>Players in Session</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                              {playersInSession.map((player) => (
-                                  <div key={player.id} className="flex items-center space-x-4 py-2">
-                                      <Avatar>
-                                          <AvatarImage src="https://github.com/shadcn.png" />
-                                          <AvatarFallback>{player.nickname?.substring(0, 2)}</AvatarFallback>
-                                      </Avatar>
-                                      <div>
-                                          <p className="text-sm font-medium leading-none">{player.nickname}</p>
-                                      </div>
-                                  </div>
-                              ))}
-                          </CardContent>
-                      </Card>
-                  </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="ghost" className="justify-start mb-2">
-                      {gameSession?.status === 'waiting' ? (
-                        <Info className="mr-2 h-4 w-4 text-blue-500" />
-                      ) : gameSession?.status === 'active' ? (
-                        <Play className="mr-2 h-4 w-4 text-green-500" />
-                      ) : (
-                        <Pause className="mr-2 h-4 w-4 text-orange-500" />
-                      )}
-                        Game Info
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Game Session Information</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {gameSession && (
-                        <>
-                          <p><strong>Name:</strong> {gameSession.sessionName}</p>
-                          <p>
-                            <strong>Players:</strong>{" "}
-                            {Object.keys(playersInSession).length}/{gameSession.maxPlayers}
-                          </p>
-                          <p><Clock className="mr-2 h-4 w-4" /> {gameSession.timePerQuestionInSec} s</p>
-                          <p><strong>Group:</strong> {groupName}</p>
-                          
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                </PopoverContent>
-              </Popover>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" className="justify-start mb-2">
+                            <User className="mr-2 h-4 w-4" /> List Players
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Players in Session</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {playersInSession.map((player) => (
+                                    <div key={player.id} className="flex items-center space-x-4 py-2">
+                                        <Avatar>
+                                            <AvatarImage src="https://github.com/shadcn.png" />
+                                            <AvatarFallback>{player.nickname?.substring(0, 2)}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <p className="text-sm font-medium leading-none">{player.nickname}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    </PopoverContent>
+                </Popover>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" className="justify-start mb-2">
+                            {gameSession?.status === 'waiting' ? (
+                                <Info className="mr-2 h-4 w-4 text-blue-500" />
+                            ) : gameSession?.status === 'active' ? (
+                                <Play className="mr-2 h-4 w-4 text-green-500" />
+                            ) : (
+                                <Pause className="mr-2 h-4 w-4 text-orange-500" />
+                            )}
+                            Game Info
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Game Session Information</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {gameSession && (
+                                    <>
+                                        <p><strong>Name:</strong> {gameSession.sessionName}</p>
+                                        <p>
+                                            <strong>Players:</strong>{" "}
+                                            {playersCount}/{gameSession.maxPlayers}
+                                        </p>
+                                        <p><Clock className="mr-2 h-4 w-4" /> {gameSession.timePerQuestionInSec} s</p>
+                                        <p><strong>Group:</strong> {getGroupName(gameSession.questionGroupId)}</p>
+                                        <p><strong>Status:</strong> {gameSession.status}</p>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </PopoverContent>
+                </Popover>
                 <Button variant="ghost" className="justify-start mb-2">
                     <BarChart className="mr-2 h-4 w-4" /> Game Results
                 </Button>
@@ -747,16 +699,15 @@ const GamePage = () => {
                 </div>
                 <h1 className="text-3xl font-bold mb-4 mt-4">{title}</h1>
 
-                
                 <div className="mt-8 text-center">
                     <h2 className="text-2xl font-bold">Admin View</h2>
                     {gameSession && (
                         <div className="mb-4">
-                            
+
                         </div>
                     )}
                 </div>
-                
+
             </div>
         </div>
     );
