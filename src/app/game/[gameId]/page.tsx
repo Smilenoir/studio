@@ -605,6 +605,64 @@ const GamePage = () => {
       return groupName || 'Unknown Group';
     };
 
+    const removePlayerFromSession = async (userId: string) => {
+      try {
+          const { data: redisData, error: redisError } = await supabase
+              .from('redis')
+              .select('value')
+              .eq('key', sessionId)
+              .maybeSingle();
+
+          if (redisError) {
+              console.error('Error fetching Redis data:', redisError);
+              toast({
+                  title: "Error",
+                  description: "Failed to fetch session players.",
+                  variant: "destructive"
+              });
+              return;
+          }
+
+          if (redisData && redisData.value) {
+              try {
+                  const players = JSON.parse(redisData.value);
+                  if (players[userId]) {
+                      delete players[userId];
+
+                      const { error: updateError } = await supabase
+                          .from('redis')
+                          .update({ value: JSON.stringify(players) })
+                          .eq('key', sessionId);
+
+                      if (updateError) {
+                          console.error('Error updating Redis data:', updateError);
+                          toast({
+                              title: "Error",
+                              description: "Failed to remove player from session.",
+                              variant: "destructive"
+                          });
+                          return;
+                      }
+
+                      // Fetch usernames for the lobby
+                      fetchPlayers(sessionId);
+
+                  }
+              } catch (parseError) {
+                  console.error('Error parsing Redis data:', parseError);
+                  toast({
+                      title: "Error",
+                      description: "Failed to parse session players data.",
+                      variant: "destructive"
+                  });
+                  return;
+              }
+          }
+      } catch (error) {
+          console.error('Unexpected error fetching Redis data:', error);
+      }
+  };
+
 
     return (
         <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
@@ -632,6 +690,9 @@ const GamePage = () => {
                                         <div>
                                             <p className="text-sm font-medium leading-none">{player.nickname}</p>
                                         </div>
+                                        <Button size="icon" variant="destructive" onClick={() => removePlayerFromSession(player.id!)}>
+                                          <Trash className="h-4 w-4"/>
+                                        </Button>
                                     </div>
                                 ))}
                             </CardContent>
