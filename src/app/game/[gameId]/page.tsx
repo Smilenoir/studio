@@ -671,7 +671,14 @@ const GamePage = () => {
                       </PopoverContent>
                   </Popover>
                     <Button variant="ghost" className="justify-start mb-2">
-                        <Info className="mr-2 h-4 w-4" /> Game Info
+                        {gameSession?.status === 'waiting' ? (
+                            <Info className="mr-2 h-4 w-4 text-blue-500" />
+                        ) : gameSession?.status === 'active' ? (
+                            <Info className="mr-2 h-4 w-4 text-green-500" />
+                        ) : (
+                            <Info className="mr-2 h-4 w-4 text-orange-500" />
+                        )}
+                        Game Info
                     </Button>
                     <Button variant="ghost" className="justify-start mb-2">
                         <BarChart className="mr-2 h-4 w-4" /> Game Results
