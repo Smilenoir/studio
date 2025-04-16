@@ -676,6 +676,9 @@ const GamePage = () => {
                     <Button variant="ghost" className="justify-start mb-2">
                         <ListOrdered className="mr-2 h-4 w-4" /> Round Results
                     </Button>
+                    <Button variant="ghost" className="justify-start mb-2">
+                        Game Info
+                    </Button>
                     {gameSession?.status === 'waiting' && (
                       <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
                           <Play className="mr-2 h-4 w-4" /> Start Game
