@@ -26,7 +26,7 @@ import { ArrowLeft } from "lucide-react";
 import { generateId } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users } from "@/components/users";
-import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play, Info, Stop, Pause } from "lucide-react";
+import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play, Info, Stop, Pause, Clock } from "lucide-react";
 
 interface UserSession {
     nickname: string | null;
@@ -707,13 +707,13 @@ const GamePage = () => {
                     <CardContent>
                       {gameSession && (
                         <>
-                          <p><strong>Session Name:</strong> {gameSession.sessionName}</p>
+                          <p><strong>Name:</strong> {gameSession.sessionName}</p>
                           <p>
                             <strong>Players:</strong>{" "}
                             {Object.keys(playersInSession).length}/{gameSession.maxPlayers}
                           </p>
-                          <p><strong>Time per Question:</strong> {gameSession.timePerQuestionInSec}</p>
-                          <p><strong>Question Group:</strong> {groupName}</p>
+                          <p><Clock className="mr-2 h-4 w-4" /> {gameSession.timePerQuestionInSec} s</p>
+                          <p><strong>Group:</strong> {groupName}</p>
                           <p><strong>Status:</strong> {gameSession.status}</p>
                         </>
                       )}
