@@ -708,9 +708,6 @@ const GamePage = () => {
                     <Button variant="ghost" className="justify-start mb-2">
                         <ListOrdered className="mr-2 h-4 w-4" /> Round Results
                     </Button>
-                    <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
-                        <Play className="mr-2 h-4 w-4" /> Start Game
-                    </Button>
                 </div>
             )}
             {/* Main Content */}
@@ -737,12 +734,7 @@ const GamePage = () => {
                                 <strong>Session Status:</strong> {gameSession.status}
                             </div>
                         )}
-                        
-                        {gameSession?.status === 'waiting' ? (
-                            <Button onClick={handleStartGame}>Start Game</Button>
-                        ) : (
-                            <Button onClick={handleNextAdminQuestion}>Next Question</Button>
-                        )}
+                        <Button onClick={handleNextAdminQuestion}>Next Question</Button>
                     </div>
                 ) : (
                     <div className="mt-8 text-center">
