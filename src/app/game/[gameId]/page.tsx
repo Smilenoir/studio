@@ -519,7 +519,7 @@ const GamePage = () => {
         }
 
         if (!sessionData || !sessionData.id) {
-            console.error('Session data or user ID is missing.');
+            console.warn('Session data or user ID is missing.  This is unexpected on Admin View.');
             return false;
         }
 
