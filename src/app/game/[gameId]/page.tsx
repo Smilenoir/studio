@@ -51,6 +51,7 @@ interface Answer {
 }
 
 interface GameSessionData {
+    id: string;
     sessionName: string;
     maxPlayers: number;
     questionGroupId: string;
@@ -76,6 +77,7 @@ const GamePage = () => {
     const [timeExpired, setTimeExpired] = useState<boolean>(false);
     const [questionRanking, setQuestionRanking] = useState<{ userId: string; score: number }[]>([]);
     const [overallRanking, setOverallRanking] = useState<{ userId: string; score: number }[]>([]);
+    const [groupName, setGroupName] = useState<string | null>(null);
 
     const sessionId = gameId as string;
 
@@ -133,6 +135,21 @@ const GamePage = () => {
                 }
 
                 setGameSession(gameSessionData);
+                const { data: groupData, error: groupError } = await supabase
+                  .from('groups')
+                  .select('name')
+                  .eq('id', gameSessionData.questionGroupId)
+                  .single();
+
+                if (groupError) {
+                  console.error("Error fetching group:", groupError);
+                  return;
+                }
+
+                if (groupData) {
+                  setGroupName(groupData.name);
+                }
+
 
                 const { data: questionGroupData, error: questionGroupError } = await supabase
                     .from('questions')
@@ -675,9 +692,9 @@ const GamePage = () => {
                       {gameSession?.status === 'waiting' ? (
                         <Info className="mr-2 h-4 w-4 text-blue-500" />
                       ) : gameSession?.status === 'active' ? (
-                        <Info className="mr-2 h-4 w-4 text-green-500" />
+                        <Play className="mr-2 h-4 w-4 text-green-500" />
                       ) : (
-                        <Info className="mr-2 h-4 w-4 text-orange-500" />
+                        <Pause className="mr-2 h-4 w-4 text-orange-500" />
                       )}
                         Game Info
                     </Button>
@@ -691,10 +708,12 @@ const GamePage = () => {
                       {gameSession && (
                         <>
                           <p><strong>Session Name:</strong> {gameSession.sessionName}</p>
-                          <p><strong>Max Players:</strong> {gameSession.maxPlayers}</p>
+                          <p>
+                            <strong>Players:</strong>{" "}
+                            {Object.keys(playersInSession).length}/{gameSession.maxPlayers}
+                          </p>
                           <p><strong>Time per Question:</strong> {gameSession.timePerQuestionInSec}</p>
-                          <p><strong>Question Group ID:</strong> {gameSession.questionGroupId}</p>
-                          <p><strong>Created At:</strong> {gameSession.createdAt}</p>
+                          <p><strong>Question Group:</strong> {groupName}</p>
                           <p><strong>Status:</strong> {gameSession.status}</p>
                         </>
                       )}
