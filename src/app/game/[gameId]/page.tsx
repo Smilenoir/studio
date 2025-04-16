@@ -26,7 +26,7 @@ import { ArrowLeft } from "lucide-react";
 import { generateId } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users } from "@/components/users";
-import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play } from "lucide-react";
+import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play, Info } from "lucide-react";
 
 interface UserSession {
     nickname: string | null;
@@ -671,13 +671,13 @@ const GamePage = () => {
                       </PopoverContent>
                   </Popover>
                     <Button variant="ghost" className="justify-start mb-2">
+                        <Info className="mr-2 h-4 w-4" /> Game Info
+                    </Button>
+                    <Button variant="ghost" className="justify-start mb-2">
                         <BarChart className="mr-2 h-4 w-4" /> Game Results
                     </Button>
                     <Button variant="ghost" className="justify-start mb-2">
                         <ListOrdered className="mr-2 h-4 w-4" /> Round Results
-                    </Button>
-                    <Button variant="ghost" className="justify-start mb-2">
-                        Game Info
                     </Button>
                     {gameSession?.status === 'waiting' && (
                       <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
