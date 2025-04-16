@@ -737,22 +737,7 @@ const GamePage = () => {
                                 <strong>Session Status:</strong> {gameSession.status}
                             </div>
                         )}
-                        {/* Display list of players in the session */}
-                        <div>
-                            <h2 className="text-xl font-semibold mb-4">Players in Session</h2>
-                            {playersInSession.length === 0 ? (
-                                <p>No players in this session.</p>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {playersInSession.map((player) => (
-                                        <div key={player.id} className="bg-gray-800 p-4 rounded-lg shadow-md">
-                                            <h3 className="text-lg font-semibold">{player.nickname}</h3>
-                                            {/* Display additional user details if needed */}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                        
                         {gameSession?.status === 'waiting' ? (
                             <Button onClick={handleStartGame}>Start Game</Button>
                         ) : (
@@ -771,5 +756,3 @@ const GamePage = () => {
 };
 
 export default GamePage;
-
-
