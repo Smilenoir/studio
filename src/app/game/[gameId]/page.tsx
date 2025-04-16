@@ -22,7 +22,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
 import { generateId } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users } from "@/components/users";
@@ -614,6 +613,7 @@ const GamePage = () => {
     };
 
     const handleRemovePlayerFromSession = async () => {
+        console.log("handleRemovePlayerFromSession called. userToKick:", userToKick);
       if (!userToKick) return;
         try {
             const { data: redisData, error: redisError } = await supabase
@@ -635,14 +635,17 @@ const GamePage = () => {
             if (redisData && redisData.value) {
                 try {
                     const players = JSON.parse(redisData.value);
+                    console.log("Raw Redis data:", redisData.value);
+                    console.log("Parsed players data:", players);
                     if (players[userToKick]) {
-                        delete players[userToKick];
+                       delete players[userToKick];
 
                         const { error: updateError } = await supabase
                             .from('redis')
                             .update({ value: JSON.stringify(players) })
                             .eq('key', sessionId);
 
+                        console.log("Supabase update result:", { updateError });
                         if (updateError) {
                             console.error('Error updating Redis data:', updateError);
                             toast({
@@ -664,19 +667,23 @@ const GamePage = () => {
                         title: "Error",
                         description: "Failed to parse session players data.",
                         variant: "destructive"
-                    });
+                    });                    
                     return;
                 }
+
+            } else {
+              console.log("No data found in Redis for key:", sessionId);
             }
         } catch (error) {
             console.error('Unexpected error fetching Redis data:', error);
         } finally {
           setOpenAlertDialog(false);
           setUserToKick(null);
-        }
+        }      
   };
 
   const handleKickPlayer = useCallback(async (userId: string) => {
+    console.log("handleKickPlayer called with userId:", userId);
     setOpenAlertDialog(true);
     setUserToKick(userId);
   }, [setOpenAlertDialog, setUserToKick]);
@@ -708,29 +715,8 @@ const GamePage = () => {
                                         <div>
                                             <p className="text-sm font-medium leading-none">{player.nickname}</p>
                                         </div>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button size="icon" variant="destructive">
-                                              <Trash className="h-4 w-4"/>
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                This action will remove this player from the session.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel onClick={() => {
-                                                setOpenAlertDialog(false);
-                                                setUserToKick(null);
-                                              }}>Cancel</AlertDialogCancel>
-                                              <AlertDialogAction onClick={handleRemovePlayerFromSession}>Continue</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
                                     </div>
+                                    
                                 ))}
                             </CardContent>
                         </Card>
@@ -805,25 +791,7 @@ const GamePage = () => {
                         </div>
                     )}
                 </div>
-
             </div>
-              <AlertDialog open={openAlertDialog} onOpenChange={setOpenAlertDialog}>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmation</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to remove this player from the session?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => {
-                      setOpenAlertDialog(false);
-                      setUserToKick(null);
-                    }}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleRemovePlayerFromSession}>Confirm</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
         </div>
     );
 };
