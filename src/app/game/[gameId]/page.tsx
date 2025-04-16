@@ -517,17 +517,19 @@ const GamePage = () => {
             console.error('Session ID is missing.');
             return false;
         }
+
         if (!sessionData || !sessionData.id) {
             console.error('Session data or user ID is missing.');
             return false;
         }
+
         try {
-            // Fetch game session data
             const { data: userData, error: userError } = await supabase
                 .from('users')
                 .select('type')
                 .eq('id', sessionData.id)
                 .single();
+
             if (userError) {
                 console.error('Error fetching game session:', userError);
                 return false;
@@ -611,14 +613,95 @@ const GamePage = () => {
 
     const title = isAdmin ? 'Admin Game Page' : 'Player Game Page';
 
+    const fetchPlayersInSession = async (): Promise<{ nickname: string; id: string }[]> => {
+        try {
+            const { data: redisData, error: redisError } = await supabase
+                .from('redis')
+                .select('value')
+                .eq('key', sessionId)
+                .maybeSingle();
+
+            if (redisError) {
+                console.error('Error fetching Redis data:', redisError);
+                toast({
+                    title: "Error",
+                    description: "Failed to fetch session players.",
+                    variant: "destructive"
+                });
+                return [];
+            }
+
+            if (redisData && redisData.value) {
+                try {
+                    const players = JSON.parse(redisData.value);
+                    const userIds = Object.keys(players);
+                    const { data: usersData, error: usersError } = await supabase
+                        .from('users')
+                        .select('nickname, id')
+                        .in('id', userIds);
+
+                    if (usersError) {
+                        console.error('Error fetching usernames:', usersError);
+                        toast({
+                            title: "Error",
+                            description: "Failed to fetch usernames.",
+                            variant: "destructive"
+                        });
+                        return [];
+                    }
+
+                    return usersData || [];
+                } catch (parseError) {
+                    console.error('Error parsing Redis data:', parseError);
+                    toast({
+                        title: "Error",
+                        description: "Failed to parse session players data.",
+                        variant: "destructive"
+                    });
+                    return [];
+                }
+            } else {
+                return [];
+            }
+        } catch (error) {
+            console.error('Unexpected error fetching Redis data:', error);
+            return [];
+        }
+    };
+    
+    
     return (
         <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
             {/* Left Menu */}
             {isAdmin && (
                 <div className="w-64 p-4 flex flex-col">
-                    <Button variant="ghost" className="justify-start mb-2">
-                        <User className="mr-2 h-4 w-4" /> List Players
-                    </Button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" className="justify-start mb-2">
+                            <User className="mr-2 h-4 w-4" /> List Players
+                        </Button>
+                    </PopoverTrigger>
+                      <PopoverContent className="w-80">
+                          <Card>
+                              <CardHeader>
+                                  <CardTitle>Players in Session</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                  {playersInSession.map((player) => (
+                                      <div key={player.id} className="flex items-center space-x-4 py-2">
+                                          <Avatar>
+                                              <AvatarImage src="https://github.com/shadcn.png" />
+                                              <AvatarFallback>{player.nickname?.substring(0, 2)}</AvatarFallback>
+                                          </Avatar>
+                                          <div>
+                                              <p className="text-sm font-medium leading-none">{player.nickname}</p>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </CardContent>
+                          </Card>
+                      </PopoverContent>
+                  </Popover>
                     <Button variant="ghost" className="justify-start mb-2">
                         <BarChart className="mr-2 h-4 w-4" /> Game Results
                     </Button>
@@ -688,4 +771,5 @@ const GamePage = () => {
 };
 
 export default GamePage;
+
 
