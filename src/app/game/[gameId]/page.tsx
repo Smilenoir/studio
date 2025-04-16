@@ -201,39 +201,7 @@ const GamePage = () => {
         checkSessionStatus();
     }, [router, sessionId]);
 
-    // Admin next question
-    const handleNextAdminQuestion = async () => {
-      if (!gameSession) return;
-
-      const nextQuestionIndex = (gameSession.question_index === null ? 0 : gameSession.question_index + 1);
-
-      if (!questions || nextQuestionIndex >= questions.length) {
-        console.log('No more questions.');
-        return;
-      }
-      // Update question index
-      const { error } = await supabase
-        .from('game_sessions')
-        .update({ question_index: nextQuestionIndex })
-        .eq('id', sessionId);
-      // Update session data locally
-      setGameSession({ ...gameSession, question_index: nextQuestionIndex });
-
-      if (error) {
-        console.error('Error updating question:', error);
-          toast({
-              title: "Error",
-              description: "Failed to update question.",
-              variant: "destructive",
-          });
-        return;
-      }
-      // set next question
-      setQuestion(questions[nextQuestionIndex]);
-      // Reset selected Answer
-      setSelectedAnswer(null);
-
-    };
+    
 
     const fetchLeaderboard = async (sessionId: string) => {
         const redisKey = sessionId;
@@ -708,6 +676,11 @@ const GamePage = () => {
                     <Button variant="ghost" className="justify-start mb-2">
                         <ListOrdered className="mr-2 h-4 w-4" /> Round Results
                     </Button>
+                    {gameSession?.status === 'waiting' && (
+                      <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
+                          <Play className="mr-2 h-4 w-4" /> Start Game
+                      </Button>
+                    )}
                 </div>
             )}
             {/* Main Content */}
@@ -734,7 +707,6 @@ const GamePage = () => {
                                 <strong>Session Status:</strong> {gameSession.status}
                             </div>
                         )}
-                        <Button onClick={handleNextAdminQuestion}>Next Question</Button>
                     </div>
                 ) : (
                     <div className="mt-8 text-center">
