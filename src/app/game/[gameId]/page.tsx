@@ -19,13 +19,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info, ListOrdered, BarChart, Play, Stop, Pause, Clock, User, Edit, Trash } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { generateId } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users } from "@/components/users";
-import { Edit, Trash, Check, X, Plus, User, ListOrdered, BarChart, Play, Info, Stop, Pause, Clock } from "lucide-react";
+
 
 interface UserSession {
     nickname: string | null;
@@ -42,6 +42,7 @@ interface User {
 interface Question {
     text: string;
     answers: string[];
+    type: "multiple-choice" | "numerical";
 }
 
 interface Answer {
@@ -59,15 +60,21 @@ interface GameSessionData {
     status: 'waiting' | 'active' | 'finished';
     players: string[];
     question_index: number | null;
+
+}
+
+interface PlayerAnswer {
+  [userId: string]: string;
 }
 
 const GamePage = () => {
     const router = useRouter();
     const { gameId } = useParams();
     const [sessionData, setSessionData] = useState<UserSession | null>(null);
+    const [title, setTitle] = useState<string>('Game Page');
     const [gameSession, setGameSession] = useState<GameSessionData | null>(null);
     const { toast } = useToast();
-    const [playersInSession, setPlayersInSession] = useState<{ nickname: string; id: string }[]>([]);
+    const [playersInSession, setPlayersInSession: React.Dispatch<React.SetStateAction<{ nickname: string; id: string }[]>> = useState([]);
     const [questions, setQuestions] = useState<Question[] | null>(null);
     const [question, setQuestion] = useState<Question | null>(null);
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -80,6 +87,15 @@ const GamePage = () => {
     const [playersCount, setPlayersCount] = useState(0);
     const [openAlertDialog, setOpenAlertDialog] = useState(false);
     const [userToKick, setUserToKick] = useState<string | null>(null);
+    const [playerAnswers, setPlayerAnswers] = useState<PlayerAnswer>({});
+    const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
+    const [waitingForPlayers, setWaitingForPlayers] = useState(false);
+    const [numericalAnswer, setNumericalAnswer] = useState<string>("");
+    const [playerRankings, setPlayerRankings] = useState<{ userId: string; rank: number, points: number }[]>([]);
+    const isLastQuestion = gameSession && questions && gameSession.question_index !== null && gameSession.question_index >= questions.length - 1;
+    const [isAdmin, setIsAdmin] = useState(false);
+
+
 
 
     const sessionId = gameId as string;
@@ -95,7 +111,7 @@ const GamePage = () => {
     }, []);
 
     useEffect(() => {
-        const fetchGameSessionAndQuestions = async () => {
+      const fetchGameSessionAndQuestions = async () => {
             if (!sessionId) {
                 console.error("Session ID is missing.");
                 return;
@@ -103,6 +119,8 @@ const GamePage = () => {
 
             try {
                 const { data: gameSessionData, error: gameSessionError } = await supabase
+
+
                     .from('game_sessions')
                     .select('*')
                     .eq('id', sessionId)
@@ -116,6 +134,39 @@ const GamePage = () => {
                 if (!gameSessionData) {
                     console.log('Game session not found');
                     return;
+                }
+                  // Check if the user is an admin or a player in the game
+                if (sessionData && sessionData.id) {
+                    const { data: userData, error: userError } = await supabase
+                        .from('users')
+                        .select('type')
+                        .eq('id', sessionData.id)
+                        .single();
+
+                    if (userError) {
+                        console.error("Error fetching user data:", userError);
+                        return;
+                    }
+
+                    const isAdminUser = userData && userData.type === 'admin';
+                    setIsAdmin(isAdminUser);
+                    const isPlayer = Object.keys(JSON.parse((await supabase.from('redis').select('value').eq('key', sessionId).maybeSingle()).data!.value || '{}')).includes(sessionData.id);
+
+                    // Redirect if the user is neither an admin nor a player
+                    if (!isAdminUser && !isPlayer) {
+                      toast({
+                        title: 'Unauthorized',
+                        description: 'You are not authorized to access this game session.',
+                        variant: 'destructive',
+                      });
+                      router.push('/');
+                      return;
+                    }
+                    if (isAdminUser){
+                         setTitle( 'Admin Game Page');
+                    } else {
+                       setTitle( 'Player Game Page');
+                    }
                 }
 
                 setGameSession(gameSessionData);
@@ -171,6 +222,7 @@ const GamePage = () => {
                 fetchPlayers(sessionId);
                 await fetchLeaderboard(sessionId);
                 await fetchRanking(sessionId);
+                
 
 
             } catch (error) {
@@ -283,6 +335,30 @@ const GamePage = () => {
         }
     };
 
+
+
+
+    
+        const getNumericalAnswerStatus = (): { status: 'correct' | 'incorrect' | 'waiting'; answer: string | null } => {
+        if (!timeExpired) {
+            return { status: 'waiting', answer: null };
+        }
+        if (!question || question.type !== 'numerical') {
+            return { status: 'waiting', answer: null };
+        }
+        const correctAnswer = question.answers[0];
+
+        const userAnswer = numericalAnswer;
+
+        if (userAnswer === correctAnswer) {
+            return { status: 'correct', answer: correctAnswer };
+        }
+        return { status: 'incorrect', answer: correctAnswer };
+
+    };
+
+    const numericalAnswerStatus = getNumericalAnswerStatus();
+
     useEffect(() => {
         const intervalId = setInterval(() => {
             if (time !== null) {
@@ -292,6 +368,7 @@ const GamePage = () => {
                     setTimeExpired(true);
                     toast({
                         title: "Time's up!",
+                        
                         description: "Time has expired for this question.",
                     });
                     clearInterval(intervalId); // Clear interval when time expires
@@ -300,35 +377,116 @@ const GamePage = () => {
         }, 1000);
         // Clean up the interval when the component unmounts
         return () => clearInterval(intervalId);
+        
     }, [time, toast]);
 
+
+
     const handleSubmitAnswer = async () => {
+
+        let currentUserRanking = null;
         if (!sessionData || !question || !sessionId || !gameSession) {
             toast({
                 title: "Error",
                 description: "Missing data. Cannot submit answer.",
                 variant: "destructive"
             });
+            
             return;
         }
 
-        const isCorrect = question.answers.includes(selectedAnswer as string);
         let points = 0;
 
-        if (isTimed && time !== null && time > 0) {
-            if (isCorrect) {
-                points = time; // Award points based on remaining time
+        if (question.type === "multiple-choice") {
+          const correctAnswer = question.answers.find(ans => ans === selectedAnswer);
+          const allPlayersAnswers = Object.entries(playerAnswers).filter(([_, answer]) => answer).length;
+
+          if (timeExpired || !correctAnswer) {
+            points = 0;
+          } else {
+            const sortedPlayers = Object.entries(playerAnswers)
+              .filter(([_, answer]) => question.answers.includes(answer)) // Filter for correct answers
+              .sort(([_userIdA, answerA], [_userIdB, answerB]) => {
+                  const indexA = question.answers.indexOf(answerA);
+                  const indexB = question.answers.indexOf(answerB);
+                  //  players sort by order of selecting
+                  return indexA - indexB;
+              });
+
+            const playerIndex = sortedPlayers.findIndex(([userId, _]) => userId === sessionData.id);
+
+            if (playerIndex !== -1) {
+              points = (1 + allPlayersAnswers - (playerIndex + 1)) * 5;
             }
+          }
+          
         }
 
-        if (!isCorrect) {
-            toast({
-                title: "Incorrect Answer",
-                description: "You did not answer correctly.",
-                variant: "destructive"
-            });
-            return;
+        if (question.type === "numerical") {
+            const correctAnswer = parseFloat(question.answers[0]);
+           
+            const playersWithAnswers: { userId: string; answer: number; accuracy: number; timestamp: number }[] = [];
+
+              for (const [userId, userAnswer] of Object.entries(playerAnswers)) {
+                const answerNumber = parseFloat(userAnswer);
+                if (!isNaN(answerNumber)) {
+                  const difference = Math.abs(correctAnswer - answerNumber);
+                  const accuracy = (1 - (difference / correctAnswer)) * 100;
+
+                  playersWithAnswers.push({
+                    userId,
+                    answer: answerNumber,
+                    accuracy: accuracy < 0 ? 0 : accuracy,
+                    timestamp: Date.now(),
+                  });
+                }
+              }
+
+              const playerAccuracyRanking = playersWithAnswers.map((player) => ({
+                userId: player.userId,
+                accuracy: player.accuracy,
+                timestamp: player.timestamp,
+              }));
+              playerAccuracyRanking.sort((a, b) => {
+                if (b.accuracy !== a.accuracy) {
+                  return b.accuracy - a.accuracy;
+                }
+                return a.timestamp - b.timestamp;
+              });
+              const currentUserIndex = playerAccuracyRanking.findIndex((player) => player.userId === sessionData.id);
+
+              if (currentUserIndex !== -1) {
+                points = (1 + playersWithAnswers.length - (currentUserIndex + 1)) * 5;
+                // Update playerRankings
+                const newPlayerRankings = playerAccuracyRanking.map((player, index) => ({
+                  userId: player.userId,
+                  rank: index + 1,
+                  points: (1 + playersWithAnswers.length - (index + 1)) * 5,
+                }));
+
+                setPlayerRankings(newPlayerRankings);
+                currentUserRanking = newPlayerRankings.find((player) => player.userId === sessionData.id);
+              } else {
+                points = 0;
+              }
+
+
+
+            // Calculate points based on ranking
+            const localPlayerRankings = playerZScores.map((player, index) => ({
+                userId: player.userId,
+                rank: index + 1,
+                points: (index + 1) * 2, // Example: rank 1 gets 2 points, rank 2 gets 4 points, etc.
+            }));
+            const z = Math.abs(correctAnswer - parseFloat(numericalAnswer));  
+
+            if (playersWithAnswers.length > 0 && z === 0) {
+            points = 10;
+          } else {
+            points = 0;
+          }
         }
+
 
         const redisKey = sessionId;
         try {
@@ -393,11 +551,18 @@ const GamePage = () => {
                 });
                 return;
             }
-
-            toast({
-                title: "Correct Answer!",
-                description: `You earned ${points} points!`,
-            });
+            if(points > 0){
+              toast({
+                  title: "Answer Accepted!",
+                  description: `You earned ${points} points!`,
+              });
+            }
+            if(points === 0 && question.type === "multiple-choice" && !timeExpired){
+                  toast({
+                    title: "Incorrect Answer",
+                    description: "You did not answer correctly.",
+                    variant: "destructive",
+                  });}
             fetchLeaderboard(sessionId);
             fetchRanking(sessionId);
 
@@ -410,6 +575,7 @@ const GamePage = () => {
             });
         } finally {
             setTimeExpired(true);
+            setIsAnswerSubmitted(true);
         }
     };
 
@@ -423,6 +589,7 @@ const GamePage = () => {
             const { data, error } = await supabase
                 .from('users')
                 .select('nickname, id')
+                
                 .in('id', userIds);
 
             if (error) {
@@ -481,6 +648,14 @@ const GamePage = () => {
       fetchPlayers(sessionId);
     }, [sessionId]);
 
+      useEffect(() => {
+          if (gameSession && playersInSession.length > 0) {
+              const allPlayersAnswered = Object.keys(playerAnswers).length === playersInSession.length;
+              const allPlayersAnsweredOrTimeExpired = allPlayersAnswered || timeExpired;
+            setWaitingForPlayers(!allPlayersAnsweredOrTimeExpired);
+        }
+    }, [playerAnswers, playersInSession, timeExpired]);
+
     useEffect(() => {
         if (questions && questions.length > 0) {
             // Now it's safe to set the initial question
@@ -499,8 +674,8 @@ const GamePage = () => {
         // }
     }, [isTimed, time]);
 
-    useEffect(() => {
-        if (gameSession && questions) {
+    useEffect(  () => {
+        if (gameSession && questions && playersInSession) {
             const userIds = new Set<string>();
             for (const player of playersInSession) {
                 userIds.add(player.id!);
@@ -510,7 +685,6 @@ const GamePage = () => {
         }
     }, [overallRanking, questionRanking]);
 
-    const title = 'Admin Game Page';
 
     const fetchPlayersInSession = async (): Promise<{ nickname: string; id: string }[]> => {
         try {
@@ -682,15 +856,91 @@ const GamePage = () => {
         }      
   };
 
-  const handleKickPlayer = useCallback(async (userId: string) => {
+    const handleNextQuestion = async () => {
+      if (!gameSession || !questions || !sessionId) return;
+
+      const nextQuestionIndex = (gameSession.question_index || 0) + 1;
+      if (nextQuestionIndex >= questions.length) {
+        }
+
+        // Update the game session in Supabase
+        const { error } = await supabase
+            .from('game_sessions')
+            .update({ question_index: nextQuestionIndex })
+            .eq('id', sessionId);
+
+        if (error) {
+            console.error('Error updating game session question index:', error);
+            toast({ title: "Error", description: "Failed to load next question.", variant: "destructive" });
+            return;
+        }
+
+        // Update local state
+        setGameSession({ ...gameSession, question_index: nextQuestionIndex });
+        setQuestion(questions[nextQuestionIndex]);
+        setTimeExpired(false);
+        setIsAnswerSubmitted(false);
+        setNumericalAnswer('');
+        setPlayerAnswers({});
+    };
+
+    const handleFinishGame = async () => {
+        if (!gameSession || !sessionId) return;
+    
+        try {
+            const { error } = await supabase
+                .from('game_sessions')
+                .update({ status: 'finished' })
+                .eq('id', sessionId);
+    
+            if (error) {
+                console.error('Error updating game session status to finished:', error);
+                toast({ title: "Error", description: "Failed to finish the game.", variant: "destructive" });
+                return;
+            }
+    
+            toast({ title: "Game Finished!", description: "The game has ended.", variant: "success" });
+            router.push('/results');
+        } catch (error) {
+            console.error('Unexpected error finishing the game:', error);
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Unexpected error finishing the game."
+            });
+        }
+    };
+
     console.log("handleKickPlayer called with userId:", userId);
     setOpenAlertDialog(true);
     setUserToKick(userId);
   }, [setOpenAlertDialog, setUserToKick]);
+  
+  const handleAnswerSelect = (answer: string) => {
+    if (sessionData?.type !== 'admin' && gameSession?.status === 'active' && question?.type === 'multiple-choice') {
+      setSelectedAnswer(answer);
+      setPlayerAnswers(prev => ({
+        ...prev,
+        [sessionData.id!]: answer,
+      }));
+    }
+  };
 
+  const getAnswerButtonClass = (answer: string, isAdmin: boolean) => {
+    if (isAdmin) {
+      return question?.answers.includes(answer) ? 'bg-green-500 text-white' : '';
+    } else {
+        if (timeExpired && question && question.answers.includes(answer)) {
+        return 'bg-green-500 text-white';
+      } else if (timeExpired && selectedAnswer === answer && !question?.answers.includes(answer)) {
+        return 'bg-red-500 text-white';
+      } else if (!timeExpired && playerAnswers[sessionData!.id!]) return playerAnswers[sessionData!.id!] === answer ? 'bg-orange-500 text-white': '';
+      return '';
+    }
+  };
 
     return (
-        <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
+        
             {/* Left Menu */}
 
             <div className="w-64 p-4 flex flex-col">
@@ -705,21 +955,26 @@ const GamePage = () => {
                             <CardHeader>
                                 <CardTitle>Players in Session</CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            
                                 {playersInSession.map((player) => (
-                                    <div key={player.id} className="flex items-center space-x-4 py-2">
-                                        <Avatar>
-                                            <AvatarImage src="https://github.com/shadcn.png" />
-                                            <AvatarFallback>{player.nickname?.substring(0, 2)}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <p className="text-sm font-medium leading-none">{player.nickname}</p>
-                                        </div>
-                                    </div>
+                                    
+                                        
+                                            
+                                                
+                                                    
+                                                        {player.nickname?.substring(0, 2)}
+                                                    
+                                                
+                                                
+                                                    
+                                                
+                                            
+                                        
+                                    
                                     
                                 ))}
-                            </CardContent>
-                        </Card>
+                            
+                        
                     </PopoverContent>
                 </Popover>
                 <Popover>
@@ -735,64 +990,166 @@ const GamePage = () => {
                             Game Info
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Game Session Information</CardTitle>
-                            </CardHeader>
-                            <CardContent>
+                    
+                        
+                            
+                                Game Session Information
+                            
+                            
                                 {gameSession && (
                                     <>
-                                        <p><strong>Name:</strong> {gameSession.sessionName}</p>
-                                        <p>
+                                        
+                                            <strong>Name:</strong> {gameSession.sessionName}
+                                        
+                                        
                                             <strong>Players:</strong>{" "}
                                             {playersCount}/{gameSession.maxPlayers}
-                                        </p>
-                                        <p><Clock className="mr-2 h-4 w-4" /> {gameSession.timePerQuestionInSec} s</p>
-                                        <p><strong>Group:</strong> {getGroupName(gameSession.questionGroupId)}</p>
-                                        <p><strong>Status:</strong> {gameSession.status}</p>
+                                        
+                                        
+                                            <Clock className="mr-2 h-4 w-4" /> {gameSession.timePerQuestionInSec} s
+                                        
+                                        
+                                            <strong>Group:</strong> {getGroupName(gameSession.questionGroupId)}
+                                        
+                                        
+                                            <strong>Status:</strong> {gameSession.status}
+                                        
                                     </>
                                 )}
-                            </CardContent>
-                        </Card>
-                    </PopoverContent>
+                            
+                        
+                    
                 </Popover>
-                <Button variant="ghost" className="justify-start mb-2">
-                    <BarChart className="mr-2 h-4 w-4" /> Game Results
-                </Button>
-                <Button variant="ghost" className="justify-start mb-2">
-                    <ListOrdered className="mr-2 h-4 w-4" /> Round Results
-                </Button>
-                <Button variant="ghost" className="justify-start mb-2" onClick={handleStartGame}>
-                    <Play className="mr-2 h-4 w-4" /> Start Game
-                </Button>
-            </div>
+                
+                     Game Results
+                 
+                
+                     Round Results
+                 
+                 {sessionData?.type === 'admin' && gameSession?.status === 'waiting' && (
+                    
+                         Start Game
+                     
+                )}
+                      {sessionData?.type === 'admin' && gameSession?.status === 'active' && timeExpired && (
+                                    
+                                        {isLastQuestion ? (
+                                            
+                                                Finish Game
+                                            
+                                        ) : (
+                                            
+                                                Next Question
+                                            
+                                        )}
+                                    
+                                )}
+            
             {/* Main Content */}
-            <div className="flex-1 p-4">
-                <div className="absolute bottom-4 left-4">
-                    <Button
-                        variant="outline"
-                        className="h-10 w-10 p-0 bg-black border-gray-500 text-white rounded-full"
-                        onClick={() => router.push('/')}
-                    >
-                        <ArrowLeft
-                            className="h-6 w-6"
-                            aria-hidden="true"
-                        />
-                    </Button>
-                </div>
-                <h1 className="text-3xl font-bold mb-4 mt-4">{title}</h1>
+            
+                
+                    
+                        
+                            
+                                
+                                    <Button
+                                        variant="outline"
+                                        className="h-10 w-10 p-0 bg-black border-gray-500 text-white rounded-full"
+                                        onClick={() => router.push('/')}
+                                    >
+                                        
+                                            
+                                        
+                                    </Button>
+                                
+                            
+                            
+                
+                
+                         {question && (
+                            
+                                {question.text}
+                           
+                         )}
+                    
+                     
+              
+              {question.answers.map((answer, index) => (
+                
+                  
+                    {answer}
+                  
+                
+              ))}
+            
 
-                <div className="mt-8 text-center">
-                    <h2 className="text-2xl font-bold">Admin View</h2>
-                    {gameSession && (
-                        <div className="mb-4">
+                     
+                        
+                            
+                                Your answer
+                                
+                                    Confirm
+                                
+                            
+                        
+                    
+                    
+                       
+                            Correct answer: {numericalAnswerStatus.answer}
+                               {numericalAnswerStatus.status === 'correct' ? (
+                                
+                                  You answered correctly!
+                                
+                             ) : (
+                                
+                                  You answered incorrectly.
+                                
+                             )}
+                             {/* Display player ranking here */}
+                               {(gameSession?.status === 'active' && question.type === 'numerical' && timeExpired) && (
+                                        <>
+                                          
+                                            { Object.values(playerAnswers).length > 0 ? (
+                                                
+                                                  Your ranking: {
+                                                playerAnswers[sessionData.id!] ? (playerRankings?.find(player => player.userId === sessionData.id)?.rank || 'N/A') : 'N/A'
+                                                } out of {Object.keys(playerAnswers).length}
+                                                
+                                            ) : null}
+                                        
+                                    )}
+                          
+                         
+                     
+                    
 
-                        </div>
+                    
+                    {sessionData?.type === 'admin' && gameSession?.status === 'waiting' && (
+                        
+                            
+                                Players in Lobby:
+                            
+                           
+                            
+                                {playersInSession.map((player) => (
+                                    
+                                        
+                                            {player.nickname}
+                                            
+                                                Kick
+                                            
+                                        
+                                    
+                                ))}
+                            
+                        
                     )}
-                </div>
-            </div>
-        </div>
+                    
+                        
+                    
+                
+            
+        
     );
 };
 
