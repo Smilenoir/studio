@@ -649,7 +649,7 @@ const GamePage = () => {
     }, [sessionId]);
 
       useEffect(() => {
-          if (gameSession && playersInSession.length > 0) {
+          if (gameSession && questions && playersInSession) {
               const allPlayersAnswered = Object.keys(playerAnswers).length === playersInSession.length;
               const allPlayersAnsweredOrTimeExpired = allPlayersAnswered || timeExpired;
             setWaitingForPlayers(!allPlayersAnsweredOrTimeExpired);
@@ -911,6 +911,7 @@ const GamePage = () => {
         }
     };
 
+    const handleKickPlayer = useCallback((userId: string) => {
     console.log("handleKickPlayer called with userId:", userId);
     setOpenAlertDialog(true);
     setUserToKick(userId);
