@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { createClient } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Info, ListOrdered, BarChart, Play, Stop, Pause, Clock, User, Edit, Trash } from "lucide-react";
@@ -93,7 +93,6 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
                 // Handle error
                 return;
             }
-            const supabase = createClient();
 
             const { data, error } = await supabase
                 .from<GameSessionData>('game_sessions') // Replace with your table name
@@ -114,7 +113,6 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
                 }
             }
         };
-        const supabase = createClient();
 
         const startGame = async (sessionData: GameSessionData) => {
             const { data: questions, error: questionsError } = await supabase
@@ -330,7 +328,6 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
     const endGame = async () => {
         if (!gameSession) return;
 
-        const supabase = createClient();
 
         try {
             const { error } = await supabase
@@ -455,7 +452,6 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
     // Основная загрузка данных игры
     useEffect(() => {
         const fetchGameData = async () => {
-            const supabase = createClient();
 
             if (gameSession?.status === 'in_progress' && currentQuestion && gameSession.timePerQuestionInSec) {
                 setTimeLeft(gameSession.timePerQuestionInSec);
@@ -661,7 +657,7 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
 
 
     return (
-        <div className="game-container">
+        
             {/* Левое меню управления */}
             <LeftMenu data={getLeftMenuData()} />
 
@@ -745,7 +741,7 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        
     );
 };
 export default GamePageClient;
