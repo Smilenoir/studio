@@ -59,18 +59,16 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
     const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [time, setTime] = useState<number>(0);
     const [timeExpired, setTimeExpired] = useState<boolean>(false);
-    const [isAdmin, setIsAdmin] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number>(0);
     const [openAlertDialog, setOpenAlertDialog] = useState(false);
     const [userToKick, setUserToKick] = useState<string | null>(null);
     const [playerAnswers, setPlayerAnswers] = useState<PlayerAnswer>({});
     const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
     const [numericalAnswer, setNumericalAnswer] = useState<string>("");
-    const [sessionStatus, setSessionStatus] = useState<string>('waiting')
+    const [sessionStatus, setSessionStatus] = useState<string>('waiting');
     const [playerRankings, setPlayerRankings] = useState<{ userId: string; rank: number, points: number }[]>([]);
+    const [isAdmin, setIsAdmin] = useState(false);
     //const [isAdminObserver, setIsAdminObserver] = useState(false);
-
-
 
     const isLastQuestion = gameSession && questions && gameSession.question_index !== null && gameSession.question_index >= questions.length - 1;
 
@@ -253,8 +251,6 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
 
         loadSession();
     }, [supabase, gameId]); // Removed params.gameId, assuming it's handled in loadSession
-
-
 
 
     const getAnswerButtonClass = (answer: string, isAdmin: boolean) => {
@@ -646,15 +642,13 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
         sessionData,
         playersCount: playersInSession.length,
         getGroupName: () => 'Some Group Name', // Mock, replace with the real implementation, possibly fetch from a db
-        isAdmin,
-        isLastQuestion,
-        timeExpired,
-        handleStartGame,
-        handleNextQuestion,
-        handleFinishGame
+        isAdmin: isAdmin,
+        isLastQuestion: isLastQuestion,
+        timeExpired: timeExpired,
+        handleStartGame: handleStartGame,
+        handleNextQuestion: handleNextQuestion,
+        handleFinishGame: handleFinishGame
     }), [gameSession, playersInSession, sessionData, isAdmin, isLastQuestion, timeExpired, handleStartGame, handleNextQuestion, handleFinishGame]);
-
-
 
     return (
         
