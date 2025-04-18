@@ -739,3 +739,4 @@ const GamePageClient: React.FC = () => { // Removed gameId prop
     );
 };
 export default GamePageClient;
+"
