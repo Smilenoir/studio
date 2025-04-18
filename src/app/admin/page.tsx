@@ -61,30 +61,9 @@ export default function AdminPage() {
           <Dashboard />
         </TabsContent>       
          <TabsContent value="sessions" className="mt-4">
-            <GameSessions />
-            {/* Placeholder for Game Sessions Table */}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Session ID</TableHead>
-                  <TableHead>Session Name</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sessions.map((session) => (
-                  <TableRow key={session.id}>
-                    <TableCell>{session.id}</TableCell>
-                    <TableCell>{session.sessionName}</TableCell>
-                    <TableCell><Button onClick={() => handleTakeControl(session.id)}>Take Control</Button></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+           <GameSessions />
+
           </TabsContent>
-        <TabsContent value="sessions" className="mt-4">
-          <GameSessions />
-        </TabsContent>
         <TabsContent value="questions" className="mt-4">
           <QuestionEditor />
         </TabsContent>
