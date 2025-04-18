@@ -1,22 +1,14 @@
 // src/components/LeftMenu.tsx
-import React from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
     Button,
     Popover,
-    PopoverContent,
-    PopoverTrigger,
 } from "@/components/ui/button";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { Info, Play, Pause, Clock, User, ArrowRight } from "lucide-react";
 import PlayerList from "./PlayerList";
 import GameInfo from "./GameInfo";
 import AdminControls from "./AdminControls";
+import { supabase } from "@/lib/supabaseClient";
 
 
 interface GameSession {
@@ -45,7 +37,7 @@ export interface LeftMenuData {
     gameSession: GameSession | null;
     playersInSession: Player[];
     sessionData: UserSession | null;
-    playersCount: number;
+
     getGroupName: (groupId: string) => string;
     isAdmin: boolean;
     isLastQuestion: boolean;
@@ -60,13 +52,39 @@ interface LeftMenuProps {
 }
 
 const LeftMenu: React.FC<LeftMenuProps> = ({ data }) => {
-    const { gameSession, playersInSession, sessionData, playersCount, getGroupName, isAdmin, isLastQuestion, timeExpired, handleStartGame, handleNextQuestion, handleFinishGame } = data;
+    const { gameSession, playersInSession, sessionData, getGroupName, isAdmin, isLastQuestion, timeExpired, handleStartGame, handleNextQuestion, handleFinishGame } = data;
+    const [playersInLobbyCount, setPlayersInLobbyCount] = useState(0);
+
+
+    useEffect(() => {
+        const fetchPlayersInLobbyCount = async () => {
+            if (!gameSession?.id) return;
+
+            const { data: redisData } = await supabase
+                .from("redis")
+                .select("value")
+                .eq("key", gameSession.id)
+                .maybeSingle();
+
+            if (redisData?.value) {
+                const players = JSON.parse(redisData.value);
+                setPlayersInLobbyCount(Object.keys(players).length);
+            } else {
+                setPlayersInLobbyCount(0);
+            }
+        };
+        fetchPlayersInLobbyCount();
+    }, [gameSession?.id]);
+
     return (
         <div className="w-64 p-4 flex flex-col">
             {gameSession?.status !== "waiting" && (
                 <PlayerList playersInSession={playersInSession} />
             )}
-            <GameInfo gameSession={gameSession} playersCount={playersCount} getGroupName={getGroupName} />
+            <GameInfo
+                gameSession={gameSession}
+                playersInLobbyCount={playersInLobbyCount}
+                getGroupName={getGroupName}/>
             {/* Placeholder for Game Results and Round Results */}
             <div>Game Results</div>
             <div>Round Results</div>
@@ -74,5 +92,9 @@ const LeftMenu: React.FC<LeftMenuProps> = ({ data }) => {
         </div>
     );
 };
+
+
+
+
 
 export default LeftMenu;

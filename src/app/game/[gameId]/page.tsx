@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useEffect, useCallback} from 'react';
+import {useState, useEffect, useCallback, useMemo} from 'react';
 import {useRouter, useParams} from 'next/navigation';
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar';
 import {supabase} from '@/lib/supabaseClient';
@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 import {useToast} from '@/hooks/use-toast';
 import LeftMenu, {LeftMenuData} from '@/components/LeftMenu';
-import { useMemo } from 'react';
 
 interface UserSession {
   nickname: string | null;
@@ -77,6 +76,7 @@ const GamePage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [users, setUsers] = useState<any[]>([])
+  const [questionGroups, setQuestionGroups] = useState<Array<{ id: string; name: string }>>([]);
 
 
   useEffect(() => {
@@ -99,6 +99,7 @@ const GamePage = () => {
           description: 'Game ID is missing.',
         });
         return;
+
       }
 
       const {data, error} = await supabase
@@ -141,7 +142,22 @@ const GamePage = () => {
         setPlayersInLobby(usersData?.map((user) => user.nickname) || []);
       }
     };
+    const fetchQuestionGroups = async () => {
+        const { data, error } = await supabase
+            .from('groups')
+            .select('id, name');
+        if (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Failed to load question groups',
+            });
+            return;
+        }
+        setQuestionGroups(data || []);
+    };
 
+    fetchQuestionGroups();
 
     if (gameId) fetchGameSession();
   }, [gameId, toast]);
@@ -206,6 +222,11 @@ const GamePage = () => {
         }
     };
 
+    const getGroupName = useMemo(() => (groupId: string) => {
+        const group = questionGroups.find(group => group.id === groupId);
+        return group ? group.name : "Unknown Group";
+    }, [questionGroups]);
+
   return (
     <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
       {/* Left Menu */}
@@ -217,7 +238,7 @@ const GamePage = () => {
             playersInSession,
             sessionData,
             playersCount: playersInSession.length,
-            getGroupName: () => gameSession?.questionGroupId || '',
+              getGroupName: getGroupName,
             isAdmin: sessionData?.type === 'admin',
             isLastQuestion: false,
             timeExpired: timeLeft <= 0,
@@ -274,4 +295,3 @@ const GamePage = () => {
 };
 
 export default GamePage;
-

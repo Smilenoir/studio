@@ -1,11 +1,8 @@
 // src/components/GameInfo.tsx
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+import { Clock, Info } from "lucide-react";
 
 interface GameSession {
   id: string;
@@ -21,43 +18,46 @@ interface GameSession {
 
 interface GameInfoProps {
   gameSession: GameSession | null;
-  playersCount: number;
+  playersInLobbyCount: number;
   getGroupName: (groupId: string) => string;
 }
 
 const GameInfo: React.FC<GameInfoProps> = ({
   gameSession,
-  playersCount,
-  getGroupName,
+  playersInLobbyCount,
+    getGroupName,
 }) => {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Game Session Information</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {gameSession && (
-          <>
-            <div>
-              <strong>Name:</strong> {gameSession.sessionName}
-            </div>
-            <div>
-              <strong>Players:</strong> {playersCount}/{gameSession.maxPlayers}
-            </div>
-            <div>
-              <Clock className="mr-2 h-4 w-4" />{" "}
-              {gameSession.timePerQuestionInSec} s
-            </div>
-            <div>
-              <strong>Group:</strong> {getGroupName(gameSession.questionGroupId)}
-            </div>
-            <div>
-              <strong>Status:</strong> {gameSession.status}
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button >
+          <Info className="mr-2 h-4 w-4" />
+          Game Info
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80">
+          {gameSession && (
+              <>
+                  <div>
+                      <strong>Name:</strong> {gameSession.sessionName}
+                  </div>
+                  <div>
+                      <strong>Players:</strong> {playersInLobbyCount}/{gameSession.maxPlayers}
+                  </div>
+                  <div>
+                      <Clock className="mr-2 h-4 w-4" />{" "}
+                      {gameSession.timePerQuestionInSec} s
+                  </div>
+                  <div>
+                      <strong>Group:</strong> {getGroupName(gameSession.questionGroupId)}
+                  </div>
+                  <div>
+                      <strong>Status:</strong> {gameSession.status}
+                  </div>
+              </>
+          )}
+      </PopoverContent>
+    </Popover>
   );
 };
 
