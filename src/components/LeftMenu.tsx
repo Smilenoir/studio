@@ -3,12 +3,21 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
     Button,
     Popover,
+    PopoverContent,
+    PopoverTrigger,
 } from "@/components/ui/button";
 import { Info, Play, Pause, Clock, User, ArrowRight } from "lucide-react";
 import PlayerList from "./PlayerList";
 import GameInfo from "./GameInfo";
 import AdminControls from "./AdminControls";
 import { supabase } from "@/lib/supabaseClient";
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 
 interface GameSession {
@@ -78,9 +87,39 @@ const LeftMenu: React.FC<LeftMenuProps> = ({ data }) => {
 
     return (
         <div className="w-64 p-4 flex flex-col">
-            {gameSession?.status !== "waiting" && (
-                <PlayerList playersInSession={playersInSession} />
-            )}
+            <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="outline">
+                        Players in Session
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Players in Session</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-4">
+                            {playersInSession.map((player) => (
+                                <div key={player.id} className="flex items-center space-x-4">
+                                    <Avatar>
+                                        <AvatarImage
+                                            src={`https://api.dicebear.com/7.x/bottts/svg?seed=${player.nickname}`}
+                                            alt={player.nickname}
+                                        />
+                                        <AvatarFallback>{player.nickname.substring(0, 2)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="text-sm">
+                                        {" "}
+                                        <p className="font-medium leading-none">{player.nickname}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </CardContent>
+                    </Card>
+                </PopoverContent>
+            </Popover>
+
+
             <GameInfo
                 gameSession={gameSession}
                 playersInLobbyCount={playersInLobbyCount}

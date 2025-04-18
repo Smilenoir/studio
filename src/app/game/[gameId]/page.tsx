@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import {useToast} from '@/hooks/use-toast';
 import LeftMenu, {LeftMenuData} from '@/components/LeftMenu';
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover";
 
 interface UserSession {
   nickname: string | null;
@@ -78,7 +79,25 @@ const GamePage = () => {
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [users, setUsers] = useState<any[]>([])
   const [questionGroups, setQuestionGroups] = useState<Array<{ id: string; name: string }>>([]);
+    const [groupName, setGroupName] = useState<string | null>(null);
 
+
+    const fetchPlayersInLobby = async () => {
+        if (!gameId) return;
+
+        const {data: redisData} = await supabase
+            .from('redis')
+            .select('value')
+            .eq('key', gameId)
+            .maybeSingle();
+
+        if (redisData?.value) {
+            const players = JSON.parse(redisData.value);
+            const playerIds = Object.keys(players);
+            const {data: usersData} = await supabase.from('users').select('nickname').in('id', playerIds);
+            setPlayersInLobby(usersData?.map((user) => user.nickname) || []);
+        }
+    };
 
   useEffect(() => {
     const loadUserSession = () => {
@@ -127,22 +146,6 @@ const GamePage = () => {
       fetchPlayersInLobby();
     };
 
-    const fetchPlayersInLobby = async () => {
-      if (!gameId) return;
-
-      const {data: redisData} = await supabase
-        .from('redis')
-        .select('value')
-        .eq('key', gameId)
-        .maybeSingle();
-
-      if (redisData?.value) {
-        const players = JSON.parse(redisData.value);
-        const playerIds = Object.keys(players);
-        const {data: usersData} = await supabase.from('users').select('nickname').in('id', playerIds);
-        setPlayersInLobby(usersData?.map((user) => user.nickname) || []);
-      }
-    };
     const fetchQuestionGroups = async () => {
         const { data, error } = await supabase
             .from('groups')
@@ -204,6 +207,7 @@ const GamePage = () => {
       const randomIndex = Math.floor(Math.random() * questionsData.length);
       const randomQuestion = questionsData[randomIndex];
       setCurrentQuestion(randomQuestion);
+      console.log("Selected question:", randomQuestion);  // Добавлено логирование
 
 
       const {data, error} = await supabase
@@ -313,6 +317,7 @@ const GamePage = () => {
             </CardContent>
           </Card>
         )}
+        {console.log("Rendering question:", currentQuestion)}  {/* Добавлено логирование */}
       </div>
 
       <AlertDialog open={openAlertDialog} onOpenChange={setOpenAlertDialog}>
