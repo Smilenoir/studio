@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/lib/supabaseClient';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Info, ListOrdered, BarChart, Play, Stop, Pause, Clock, User, Edit, Trash } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import LeftMenu, { LeftMenuData } from '@/components/LeftMenu';
 
@@ -49,11 +50,33 @@ const GamePageClient: React.FC = () => {
     const [openAlertDialog, setOpenAlertDialog] = useState(false);
     const [userToKick, setUserToKick] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [playersInLobby, setPlayersInLobby] = useState<string[]>([]);
+
+
+    const fetchPlayersInLobby = async () => {
+        if (!gameId) return;
+
+        const { data: redisData } = await supabase
+            .from('redis')
+            .select('value')
+            .eq('key', gameId)
+            .maybeSingle();
+
+        if (redisData?.value) {
+            const players = JSON.parse(redisData.value);
+            const playerIds = Object.keys(players);
+            const { data: usersData } = await supabase.from('users').select('nickname').in('id', playerIds);
+            setPlayersInLobby(usersData?.map((user) => user.nickname) || []);
+        }
+    };
 
     useEffect(() => {
         const loadUserSession = () => {
-            const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
-            setSessionData(userSession);
+            const storedSession = localStorage.getItem('userSession');
+            if (storedSession) {
+                const userSession = JSON.parse(storedSession);
+                setSessionData(userSession);
+            }
         };
         loadUserSession();
     }, []);
@@ -79,137 +102,108 @@ const GamePageClient: React.FC = () => {
             if (data.status === 'active' && data.current_question) {
                 setCurrentQuestion(data.current_question);
             }
+
+             fetchPlayersInLobby();
         };
 
         if (gameId) fetchGameSession();
     }, [gameId, toast]);
 
-    const handleStartGame = useCallback(async () => {
-        try {
-            const { error } = await supabase
-                .from('game_sessions')
-                .update({ status: 'active' })
-                .eq('id', gameId);
-
-            if (error) throw error;
-
-            toast({
-                title: 'Game started!',
-                description: 'The game has been successfully started',
-            });
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Failed to start game',
-            });
-        }
-    }, [gameId, toast]);
-
-    const handleNextQuestion = useCallback(async () => {
-        if (!gameSession) return;
-
-        const nextIndex = (gameSession.question_index || 0) + 1;
-        
-        const { data: questions } = await supabase
-            .from('questions')
-            .select('*')
-            .eq('group_id', gameSession.questionGroupId);
-
-        if (!questions || nextIndex >= questions.length) {
-            await handleFinishGame();
-            return;
-        }
-
-        const { error } = await supabase
-            .from('game_sessions')
-            .update({ 
-                question_index: nextIndex,
-                current_question: questions[nextIndex]
-            })
-            .eq('id', gameId);
-
-        if (!error) {
-            setCurrentQuestion(questions[nextIndex]);
-            setTimeLeft(gameSession.timePerQuestionInSec);
-        }
-    }, [gameSession, gameId]);
-
-    const handleFinishGame = useCallback(async () => {
-        const { error } = await supabase
-            .from('game_sessions')
-            .update({ status: 'finished' })
-            .eq('id', gameId);
-
-        if (!error) {
-            router.push('/results');
-        }
-    }, [gameId, router]);
-
     return (
-        <div className="game-container">
-            <LeftMenu
-                data={{
-                    gameSession,
-                    playersInSession,
-                    sessionData,
-                    playersCount: playersInSession.length,
-                    getGroupName: () => gameSession?.questionGroupId || '',
-                    isAdmin,
-                    isLastQuestion: gameSession?.question_index === ((gameSession?.asked_questions?.length || 0) - 1),
-                    timeExpired: timeLeft <= 0,
-                    handleStartGame,
-                    handleNextQuestion,
-                    handleFinishGame
-                }}
-            />
-
-            <div className="main-content">
-                <div className="header-section">
-                    <Button variant="outline" onClick={() => router.push('/')}>
-                        <ArrowLeft className="icon" />
-                    </Button>
-                    <h1>{gameSession?.sessionName}</h1>
-                </div>
-
-                {currentQuestion && (
-                    <Card className="question-card">
-                        <CardHeader>
-                            <CardTitle>{currentQuestion.text}</CardTitle>
-                        </CardHeader>
+        <>
+            {gameSession && gameSession.status === 'waiting' && sessionData && sessionData.type === 'player' ? (
+                <div className="container mx-auto max-w-4xl mt-8">
+                    <h2 className="text-2xl font-semibold mb-4">Players in Lobby</h2>
+                    <Card className="border">
                         <CardContent>
-                            <p>Time Left: {timeLeft}</p>
-                            <div className="answers-grid">
-                                {currentQuestion.answers.map((answer) => (
-                                    <Button
-                                        key={answer}
-                                        onClick={() => setSelectedAnswer(answer)}
-                                    >
-                                        {answer}
-                                    </Button>
-                                ))}
-                            </div>
-                            <Button onClick={() => {}}>Submit answer</Button>
+                            {playersInLobby.map((player) => (
+                                <div key={player} className="flex items-center space-x-4 py-2">
+                                    <Avatar>
+                                        <AvatarImage src="https://github.com/shadcn.png" />
+                                        <AvatarFallback>{player?.substring(0, 2)}</AvatarFallback>
+                                    </Avatar>
+                                    <p className="text-sm font-medium leading-none">
+                                        {player}
+                                    </p>
+                                </div>
+                            ))}
                         </CardContent>
                     </Card>
-                )}
-            </div>
+                    <Button onClick={() => router.push('/')}>Leave Lobby</Button>
+                </div>
+            ) : (
 
-            <AlertDialog open={openAlertDialog} onOpenChange={setOpenAlertDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Action</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction>Confirm</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+
+                <div className="game-container">
+                    <LeftMenu
+                        data={{
+                            gameSession,
+                            playersInSession,
+                            sessionData,
+                            playersCount: playersInSession.length,
+                            getGroupName: () => gameSession?.questionGroupId || '',
+                            isAdmin,
+                            isLastQuestion: false,
+                            timeExpired: timeLeft <= 0,
+                            handleStartGame: () => {
+                            },
+                            handleNextQuestion: () => {
+                            },
+                            handleFinishGame: () => {
+                            }
+                        }}
+                    />
+
+                    <div className="main-content">
+                        <div className="header-section">
+                            <Button variant="outline" onClick={() => router.push('/')}>
+                                <ArrowLeft className="icon" />
+                            </Button>
+                            <h1>{gameSession?.sessionName}</h1>
+                        </div>
+
+                        {currentQuestion && (
+                            <Card className="question-card">
+                                <CardHeader>
+                                    <CardTitle>{currentQuestion.text}</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p>Time Left: {timeLeft}</p>
+                                    <div className="answers-grid">
+                                        {currentQuestion.answers.map((answer) => (
+                                            <Button
+                                                key={answer}
+                                                onClick={() => setSelectedAnswer(answer)}
+                                            >
+                                                {answer}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                    <Button onClick={() => {
+                                    }}>Submit answer</Button>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+
+                    <AlertDialog open={openAlertDialog} onOpenChange={setOpenAlertDialog}>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Confirm Action</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction>Confirm</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            )}
+        </>
+
     );
 };
 
