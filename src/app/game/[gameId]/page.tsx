@@ -74,6 +74,7 @@ const GamePage = () => {
   const [playersInLobby, setPlayersInLobby] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [users, setUsers] = useState<any[]>([])
 
 
   useEffect(() => {
@@ -108,6 +109,7 @@ const GamePage = () => {
       if (data.status === 'active' && data.current_question) {
         setCurrentQuestion(data.current_question);
       }
+      getUsers()
 
       fetchPlayersInLobby();
     };
@@ -168,16 +170,41 @@ const GamePage = () => {
 
   const title = "Admin Game Page"
 
+    const getUsers = async () => {
+        try {
+            const {data, error} = await supabase
+                .from('users')
+                .select('*');
+            if (error) {
+                console.error('Error fetching users:', JSON.stringify(error));
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to fetch users."
+                })
+                return;
+            }
+            setUsers(data || []);
+        } catch (error) {
+            console.error('Unexpected error fetching users:', JSON.stringify(error));
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "Unexpected error fetching users."
+            })
+        }
+    };
+
   return (
     <div className="game-page-container bg-gray-900 text-white min-h-screen flex">
       {/* Left Menu */}
       <div className="w-64 p-4 flex flex-col">
         <h1>{title}</h1>
-        {sessionData?.type === 'admin' && gameSession?.status === 'waiting' && (
-          <Button onClick={handleStartGame} disabled={isStartingGame}>
-            {isStartingGame ? 'Starting...' : 'Start Game'}
-          </Button>
-        )}
+          {sessionData?.type === 'admin' && gameSession?.status === 'waiting' && (
+              <Button onClick={handleStartGame} disabled={isStartingGame}>
+                  {isStartingGame ? 'Starting...' : 'Start Game'}
+              </Button>
+          )}
         <LeftMenu
           data={{
             gameSession,
@@ -241,3 +268,4 @@ const GamePage = () => {
 };
 
 export default GamePage;
+
