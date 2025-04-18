@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from "lucide-react";
@@ -19,6 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { LogOut } from "lucide-react";
 
 interface GameSession {
   id: string;
@@ -30,20 +33,19 @@ interface GameSession {
   status: 'waiting' | 'active' | 'finished';
   players: string[];
   question_index: number | null;
-  role: string | null;
 }
 
 interface UserSession {
   nickname: string | null;
   id: string | null;
-  role: string | null;
+  type: string | null;
 }
 
 export default function PlayerPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [gameSessions, setGameSessions] = useState<GameSession[]>([]);
-  const [session, setSession] = useState<UserSession>({ nickname: null, id: null, role: null });
+  const [session, setSession] = useState<UserSession>({ nickname: null, id: null, type: null });
   const { toast } = useToast();
   const [joinedSessionId, setJoinedSessionId] = useState<string | null>(null);
   const [sessionPlayers, setSessionPlayers] = useState<{ [sessionId: string]: string[] }>({});
@@ -65,12 +67,21 @@ export default function PlayerPage() {
       const storedSession = localStorage.getItem('userSession');
       if (storedSession) {
         const parsedSession = JSON.parse(storedSession);
-        const { data: { user } } = await supabase.auth.getUser();
-        const role = user?.app_metadata?.role as string || null;
-        
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', parsedSession.id)
+            .single();
+        if (error) {
+            console.error('Error fetching user data:', error);
+            toast({
+                description: "Failed to load user session data.",
+            })
+        }
         setSession({
-          ...parsedSession,
-          role,
+          nickname: data?.nickname || null,
+          id: data?.id || null,
+          type: data?.type || null,
         });
       }
     } catch (error) {
@@ -94,13 +105,7 @@ export default function PlayerPage() {
         });
         return;
       }
-       if (data) {
-        const sessionsWithRole = data.map(session => ({
-          ...session,
-          role: session.role || 'player',
-        }));
-        setGameSessions(sessionsWithRole);
-      }
+        setGameSessions(data || []);
     } catch (error) {
       toast({
         title: "Error",
@@ -135,61 +140,80 @@ export default function PlayerPage() {
     }
   };
 
-  const joinGame = async (sessionId: string) => {
-    if (!session.id) {
-      toast({ title: "Error", description: "You must sign in to join a game.", variant: "destructive" });
-      return;
-    }
+    const joinGame = async (sessionId: string) => {
+        if (!session.id) {
+            toast({title: "Error", description: "You must sign in to join a game.", variant: "destructive"});
+            return;
+        }
 
-    try {
-      const { data: gameSession } = await supabase
-        .from('game_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
+        try {
+            // Get game session from the game_sessions table
+            const {data: gameSession, error: gameSessionError} = await supabase
+                .from('game_sessions')
+                .select('*')
+                .eq('id', sessionId)
+                .single();
 
-      if (!gameSession) {
-        toast({ title: "Error", description: "Game session not found.", variant: "destructive" });
-        return;
-      }
+            if (gameSessionError) {
+                toast({title: "Error", description: "Game session not found.", variant: "destructive"});
+                return;
+            }
 
-      const redisKey = sessionId;
-      const { data: redisData } = await supabase
-        .from('redis')
-        .select('value')
-        .eq('key', redisKey)
-        .maybeSingle();
+            // Get existing data from Redis
+            const redisKey = sessionId;
+            const {data: redisData, error: redisError} = await supabase
+                .from('redis')
+                .select('value')
+                .eq('key', redisKey)
+                .maybeSingle();
 
-      let updatedPlayers = { [session.id]: 0 };
-      if (redisData) {
-        updatedPlayers = { ...JSON.parse(redisData.value), [session.id]: 0 };
-      }
+            let updatedPlayers = { [session.id]: 0 };
+            if (redisData) {
+                updatedPlayers = { ...JSON.parse(redisData.value), [session.id]: 0 };
+            }
 
-      await supabase
-        .from('redis')
-        .upsert({ key: redisKey, value: JSON.stringify(updatedPlayers) }, { onConflict: 'key' });
+            // Upsert the updated players to Redis
+            const {error: updateError} = await supabase
+                .from('redis')
+                .upsert({key: redisKey, value: JSON.stringify(updatedPlayers)}, {onConflict: 'key'})
+                .select();
 
-      setJoinedSessionId(sessionId);
-      setLobbyGameSession(gameSession);
-      toast({ title: "Success", description: "Successfully joined the game!" });
+            if (updateError) {
+                console.error('Error joining game:', updateError);
+                toast({
+                    title: "Error",
+                    description: "Failed to join game.",
+                    variant: "destructive"
+                });
+                return;
+            }
 
-      fetchLobbyUsernames(sessionId);
-      await fetchGameSessions();
+            // Set joined session ID and game session
+            setJoinedSessionId(sessionId);
+            setLobbyGameSession(gameSession);
+            toast({title: "Success", description: "Successfully joined the game!"});
 
-      const channel = supabase.channel('redis-changes')
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'redis', filter: `key=eq.${redisKey}` },
-          () => fetchLobbyUsernames(sessionId)
-        )
-        .subscribe();
+            // Fetch usernames for the lobby
+            fetchLobbyUsernames(sessionId);
+            await fetchGameSessions();
 
-      return () => {
-        channel.unsubscribe();
-      };
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
+            router.push(`/game/${sessionId}`);
+
+            // Subscribe to Redis changes
+            const channel = supabase.channel('redis-changes')
+                .on('postgres_changes',
+                    {event: '*', schema: 'public', table: 'redis', filter: `key=eq.${redisKey}`},
+                    () => fetchLobbyUsernames(sessionId)
+                )
+                .subscribe();
+
+            return () => {
+                channel.unsubscribe();
+            };
+        } catch (error: any) {
+            toast({title: "Error", description: error.message, variant: "destructive"});
+        }
+    };
 
   const fetchLobbyUsernames = async (sessionId: string) => {
     const { data: redisData } = await supabase
@@ -234,6 +258,7 @@ export default function PlayerPage() {
       setJoinedSessionId(null);
       setLobbyGameSession(null);
       toast({ title: "Success", description: "Left the lobby successfully!" });
+      router.push('/player')
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
@@ -268,6 +293,24 @@ export default function PlayerPage() {
         >
           <ArrowLeft className="h-6 w-6" aria-hidden="true" />
         </Button>
+      </div>
+      <div className="absolute bottom-4 right-4">
+          {session.nickname && (
+              <Button
+                  variant="outline"
+                  className="h-10 w-10 p-0 text-white rounded-full"
+                  onClick={() => {
+                      localStorage.removeItem('userSession');
+                      router.push('/');
+                  }}
+                  disabled={loading}
+              >
+                  <LogOut
+                      className="h-6 w-6"
+                      aria-hidden="true"
+                  />
+              </Button>
+          )}
       </div>
 
       <h1 className="text-3xl font-bold mb-4">Player Page</h1>
@@ -355,7 +398,7 @@ export default function PlayerPage() {
                     <TableCell className="text-right">
                       <Button 
                         size="sm" 
-                        onClick={session.status === "waiting" && session.role === "player" ? () => joinGame(session.id) : undefined}
+                        onClick={() => joinGame(session.id)}
                         disabled={session.status !== "waiting"}
                       >
                         {session.status === "waiting" ? "Join Game" : "Game in progress"}
@@ -371,3 +414,4 @@ export default function PlayerPage() {
     </div>
   );
 }
+
