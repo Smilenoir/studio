@@ -1,11 +1,13 @@
 // src/components/LeftMenu.tsx
 import React, { useEffect, useState, useMemo } from "react";
 import {
-    Button,
+    Button
+} from "@/components/ui/button";
+import {
     Popover,
     PopoverContent,
     PopoverTrigger,
-} from "@/components/ui/button";
+} from "@/components/ui/popover";
 import { Info, Play, Pause, Clock, User, ArrowRight } from "lucide-react";
 import PlayerList from "./PlayerList";
 import GameInfo from "./GameInfo";
@@ -137,3 +139,4 @@ const LeftMenu: React.FC<LeftMenuProps> = ({ data }) => {
 
 
 export default LeftMenu;
+
