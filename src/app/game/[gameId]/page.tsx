@@ -39,6 +39,7 @@ interface UserSession {
 }
 
 interface Question {
+  id: string;
   text: string;
   answers: string[];
   correctAnswer: string;
@@ -166,9 +167,48 @@ const GamePage = () => {
   const handleStartGame = async () => {
     setIsStartingGame(true);
     try {
+
+      if (!gameSession?.questionGroupId) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No question group associated with this game session.',
+        });
+        return;
+      }
+
+      // Fetch questions based on questionGroupId
+      const {data: questionsData, error: questionsError} = await supabase
+        .from('questions')
+        .select('*')
+        .eq('groupId', gameSession.questionGroupId);
+
+      if (questionsError) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to fetch questions for this game session.',
+        });
+        return;
+      }
+
+      if (!questionsData || questionsData.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'No questions found for this game session.',
+        });
+        return;
+      }
+      // Select a random question
+      const randomIndex = Math.floor(Math.random() * questionsData.length);
+      const randomQuestion = questionsData[randomIndex];
+      setCurrentQuestion(randomQuestion);
+
+
       const {data, error} = await supabase
         .from('game_sessions')
-        .update({status: 'active'})
+        .update({status: 'active', question_index: randomIndex})
         .eq('id', gameId);
 
       if (error) {
