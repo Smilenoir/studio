@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import {useToast} from '@/hooks/use-toast';
 import LeftMenu, {LeftMenuData} from '@/components/LeftMenu';
+import { useMemo } from 'react';
 
 interface UserSession {
   nickname: string | null;
@@ -61,7 +62,8 @@ interface GameSessionData {
 
 const GamePage = () => {
   const router = useRouter();
-  const {gameId} = useParams<{ gameId: string }>();
+  const params = useParams();
+  const gameId = Array.isArray(params.gameId) ? params.gameId[0] : params.gameId;
   const {toast} = useToast();
 
   const [sessionData, setSessionData] = useState<UserSession | null>(null);
@@ -90,6 +92,15 @@ const GamePage = () => {
 
   useEffect(() => {
     const fetchGameSession = async () => {
+      if (!gameId) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Game ID is missing.',
+        });
+        return;
+      }
+
       const {data, error} = await supabase
         .from('game_sessions')
         .select('*')
@@ -200,11 +211,6 @@ const GamePage = () => {
       {/* Left Menu */}
       <div className="w-64 p-4 flex flex-col">
         <h1>{title}</h1>
-          {sessionData?.type === 'admin' && gameSession?.status === 'waiting' && (
-              <Button onClick={handleStartGame} disabled={isStartingGame}>
-                  {isStartingGame ? 'Starting...' : 'Start Game'}
-              </Button>
-          )}
         <LeftMenu
           data={{
             gameSession,
