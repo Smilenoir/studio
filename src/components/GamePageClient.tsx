@@ -36,36 +36,28 @@ interface GameSessionData {
     asked_questions: string[];
 }
 
-interface PlayerAnswer {
-    [userId: string]: string;
-}
-
 const GamePageClient: React.FC = () => {
     const router = useRouter();
     const { gameId } = useParams<{ gameId: string }>();
     const { toast } = useToast();
 
-    // Состояния
     const [sessionData, setSessionData] = useState<UserSession | null>(null);
     const [gameSession, setGameSession] = useState<GameSessionData | null>(null);
     const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
     const [playersInSession, setPlayersInSession] = useState<{ nickname: string; id: string }[]>([]);
-    const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<number>(0);
     const [openAlertDialog, setOpenAlertDialog] = useState(false);
     const [userToKick, setUserToKick] = useState<string | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
 
-    // Загрузка сессии пользователя
     useEffect(() => {
         const loadUserSession = () => {
-            const userSession = JSON.parse(localStorage.getItem('userSession') || '{}';
+            const userSession = JSON.parse(localStorage.getItem('userSession') || '{}');
             setSessionData(userSession);
         };
         loadUserSession();
     }, []);
 
-    // Загрузка данных игры
     useEffect(() => {
         const fetchGameSession = async () => {
             const { data, error } = await supabase
@@ -84,12 +76,14 @@ const GamePageClient: React.FC = () => {
             }
 
             setGameSession(data);
+            if (data.status === 'active' && data.current_question) {
+                setCurrentQuestion(data.current_question);
+            }
         };
 
         if (gameId) fetchGameSession();
     }, [gameId, toast]);
 
-    // Обработчик старта игры
     const handleStartGame = useCallback(async () => {
         try {
             const { error } = await supabase
@@ -112,7 +106,6 @@ const GamePageClient: React.FC = () => {
         }
     }, [gameId, toast]);
 
-    // Обработчик следующего вопроса
     const handleNextQuestion = useCallback(async () => {
         if (!gameSession) return;
 
@@ -142,7 +135,6 @@ const GamePageClient: React.FC = () => {
         }
     }, [gameSession, gameId]);
 
-    // Обработчик завершения игры
     const handleFinishGame = useCallback(async () => {
         const { error } = await supabase
             .from('game_sessions')
@@ -154,7 +146,6 @@ const GamePageClient: React.FC = () => {
         }
     }, [gameId, router]);
 
-    // Рендер компонента
     return (
         <div className="game-container">
             <LeftMenu
