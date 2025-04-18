@@ -97,9 +97,7 @@ export default function PlayerPage() {
   };
 
 
-  const getPlayersInSession = (sessionId: string) => {
-    return playersInLobby;
-  };
+  
 
   const joinGame = async (sessionId: string) => {
     if (!session.id) {
@@ -196,6 +194,8 @@ export default function PlayerPage() {
       setJoinedSessionId(sessionId);
       setLobbyGameSession(gameSession); // Store game session in state
 
+       // Redirect to the game session page
+       router.push(`/game/${sessionId}`);
 
       toast({
         title: "Success",
@@ -450,7 +450,7 @@ export default function PlayerPage() {
                 <CardTitle>{lobbyGameSession.sessionName}</CardTitle>
                 <CardDescription>
                   {getPlayersInSession(joinedSessionId).length}/{lobbyGameSession.maxPlayers} Players | Time per Question: {lobbyGameSession.timePerQuestionInSec === 0 ? '∞' : `${lobbyGameSession.timePerQuestionInSec} seconds`}
-                </CardDescription>
+                </CardDescription> 
               </CardHeader>
             </Card>
           )}
@@ -461,7 +461,7 @@ export default function PlayerPage() {
             </CardHeader>
             <CardContent>
               {/* Display list of players in the session */}
-              {getPlayersInSession(joinedSessionId).map((player) => (
+              {playersInLobby.map((player) => (
                 <div key={player} className="flex items-center space-x-4 py-2">
                   <Avatar>
                     <AvatarImage src="https://github.com/shadcn.png" />
@@ -498,7 +498,7 @@ export default function PlayerPage() {
                       <Popover>
                         <PopoverTrigger>
                           {`${getPlayersInSession(session.id).length}/${session.maxPlayers}`}
-                        </PopoverTrigger>
+                        </PopoverTrigger> 
                         <PopoverContent className="w-80">
                           <Card>
                             <CardHeader>
@@ -523,8 +523,8 @@ export default function PlayerPage() {
                     </TableCell>
                     <TableCell>{session.timePerQuestionInSec === 0 ? '∞' : `${session.timePerQuestionInSec} seconds`}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" onClick={() => joinGame(session.id)} disabled={getPlayersInSession(session.id).length >= session.maxPlayers}>
-                        {getPlayersInSession(session.id).length >= session.maxPlayers ? "Full" : "Join Game"}
+                      <Button size="sm" onClick={() => joinGame(session.id)} >
+                        {session.status == "waiting" ? "Join Game" : "Game in progress"}
                       </Button>
                     </TableCell>
                   </TableRow>
