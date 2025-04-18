@@ -242,8 +242,7 @@ const GamePage = () => {
             isAdmin: sessionData?.type === 'admin',
             isLastQuestion: false,
             timeExpired: timeLeft <= 0,
-            handleStartGame: () => {
-            },
+            handleStartGame: handleStartGame,
             handleNextQuestion: () => {
             },
             handleFinishGame: () => {
